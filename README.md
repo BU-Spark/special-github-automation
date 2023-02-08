@@ -10,6 +10,9 @@ It works in conjunction with BU Spark!s GitHub workflow.
 - Adding username to COLLABORATORS file.
 - Specifying the branch to make the edit.
 
+### Global Variable Setup
+Check the top of the Python script for a serious of global variables that should be set for propper function.
+
 ### Todo
 - Take input from CSV files.
 - Sync with each repo's collaborators list.

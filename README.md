@@ -7,6 +7,14 @@ There are two main scripts in this repository:
 This script is for automatically adding people to COLLABORATORS file in BU Spark!'s repository.
 It works in conjunction with BU Spark!s GitHub workflow.
 
+## Github workflow scripts
+The GitHub workflow scripts include two main scripts to automate processes within the BU Spark! GitHub organization:
+
+1. `add-archive-tag.sh`: This script is used for adding an archive tag to a specific project repository. It clones the repository, creates a tag with a custom message indicating the project archive, and then pushes the tag to the repository. Finally, it cleans up by removing the cloned repository from the local machine.
+
+2. `update-workflows.sh`: This script is designed to update GitHub Actions workflows in a project repository by copying workflow files from a template repository. It ensures that the project repository has the latest CI/CD practices as defined in the template. The script also checks for the existence of a `COLLABORATORS` file and creates one if it doesn't exist, ensuring that the repository setup is complete.
+
+
 ## `github_rest.py` Directions
 This script is meant to be integrated somewhere else but for now is just a collection of functions that can be used.
 

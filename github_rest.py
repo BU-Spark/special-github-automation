@@ -4,7 +4,7 @@ import csv
 
 # TODO: Add rate limiting support to API calls
 
-GITHUB_PAT = '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'
+GITHUB_PAT = ''
 
 
 def extract_user_repo_from_ssh(ssh_url: str) -> Tuple[str, str]:

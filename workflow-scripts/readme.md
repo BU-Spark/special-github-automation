@@ -18,4 +18,4 @@ Adds an archive tag to the provided repo and pushes tag to remote.
 
 Provided tag name is pre-pended with `spark-archive-` so all you need is to specify the final part of the tag. For example `fall2021`
 
-Usage: `sh add-archive-tag.sh <tag ending> <github repo url>
+Usage: `sh add-archive-tag.sh <tag ending> <github repo url>`

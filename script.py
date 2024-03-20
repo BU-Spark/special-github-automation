@@ -1,17 +1,27 @@
-import csv
-from collections import defaultdict
-from time import sleep
-
-from git import Repo
 import os
 import sys
 import requests
 import traceback
+import csv
 
-# You SHOULD change these
-# change this to your local path (this is the directory where the repo will be cloned to, and be deleted afterwards)
-LOCAL_PATH = '/Users/saucy/Documents/student-projects/special-github-automation/temp/'
-SSH_KEY_PATH = '/Users/saucy/.ssh/sparkeng'  # change this to your ssh key path
+from collections import defaultdict
+from time import sleep
+from dotenv import load_dotenv
+
+from git import Repo
+
+# =====================================================================================================================
+
+load_dotenv()
+
+# this is the directory where the repo will be cloned to, and be deleted afterwards
+LOCAL_PATH = os.path.dirname(os.path.realpath(__file__)) + '/temp/'
+
+# ensure that the ssh key path is correct
+SSH_KEY_PATH =  os.getenv('SSH_KEY_PATH')
+
+# your github personal access token
+GITHUB_PAT = os.getenv('GITHUB_PAT')
 
 # You shouldn't need to change these
 ERROR = True
@@ -19,15 +29,26 @@ NO_ERROR = False
 EXCEPTION_LOG = '=============================================EXCEPTION!============================================='
 UPSTREAM = 'origin'
 
+# =====================================================================================================================
 
-def check_valid_user(username):
+
+def check_valid_user(username: str) -> tuple[bool, bool]:
+    """
+    checks if a user exists on github takes a username and returns T/F, ERROR/NO_ERROR
+    :param username: the username to check
+    :return: a tuple of two booleans, the first is if the user exists, the second is if there was an error
+    """
     try:
-        r = requests.get('https://api.github.com/users/' + username, headers={
-                         'Authorization': "Bearer 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"})
-        if r.status_code == 200:  # if request returns 200, the user exists
+        r = requests.get(
+            f"https://api.github.com/users/{username}", 
+            headers={'Authorization': f"Bearer {GITHUB_PAT}"}
+        )
+
+        if r.status_code == 200:
+            print(f'Verified user {username} exists')
             return True, NO_ERROR
         else:
-            print(f'Failed to verify user with status code {r.status_code}')
+            print(f'Failed to verify user {username} exists with status code {r.status_code}')
             return False, NO_ERROR
     except:
         return False, ERROR
@@ -42,9 +63,11 @@ def add_collaborators(path, collaborators):
                 filter(lambda x: x != '' and x != '\n', f.readlines()))
             exisiting_collaborators = list(
                 map(lambda x: x.replace('\n', ''), exisiting_collaborators))
+            
             valid, invalid, errors = [], [], []
-            for user in list(filter(lambda x: x not in exisiting_collaborators,
-                                    collaborators)):  # first check if the user is already in the file
+
+            # first check if the user is already in the file
+            for user in list(filter(lambda x: x not in exisiting_collaborators,collaborators)):
                 # then check if the user exists through the github api, and filter them based on the result
                 if check_valid_user(user)[0]:
                     valid.append(user)
@@ -53,6 +76,10 @@ def add_collaborators(path, collaborators):
                 else:
                     invalid.append(user)
             f.close()
+
+            print(f'Valid: {valid}')
+            print(f'Invalid: {invalid}')
+            print(f'Errors: {errors}')
 
         # open the file with 'w' to write the existing + new collaborators from scratch
         with open(path + 'COLLABORATORS', 'w') as f:
@@ -71,7 +98,6 @@ def add_collaborators(path, collaborators):
             return valid, (return_message, NO_ERROR)
     except Exception as e:
         return [], ('add_collaborators: ' + traceback.format_exc(), ERROR)
-
 
 def git_checkout(local_path, branchname):
     try:
@@ -128,11 +154,15 @@ def git_init(remote, local_path, branchname, collaborators=[]):
     results = []
     try:
         # repo init
+
         # just to make sure if the previous run was not successful
         results.append(remove_path(local_path))
+
+        # clones the repo into the local path (ie: /temp)
         print(f'cloning ')
         Repo.clone_from(remote, local_path,
                         env={"GIT_SSH_COMMAND": "ssh -i " + SSH_KEY_PATH})  # change this to your ssh key path
+        
         # checkout to the branch
         results.append(git_checkout(local_path, branchname))
 
@@ -156,11 +186,12 @@ def git_init(remote, local_path, branchname, collaborators=[]):
                 print(result)
 
 
-# input: python3 test.py <remote (ssh)> <branchname> <collaborators (separated by space)>
+# OLD: input: python3 test.py <remote (ssh)> <branchname> <collaborators (separated by space)>
+# NEW: input: pipenv run python3 script.py <roaster path>
 def main():
     EXPECTED_HEADER = ["gh_username", "gh_repo"]
     if len(sys.argv) < 2:
-        print("Invalid number of arguments expected: script.py <roaster path>")
+        print("Invalid number of arguments expected: script.py <roster path>")
         exit(-1)
     roster_path = sys.argv[1]
     roster_dict = defaultdict(list)
@@ -185,7 +216,7 @@ def main():
             count = count + 1
     print(f'Adding the following users to repos: {roster_dict}')
     for repo, user_list in roster_dict.items():
-        print(f'Adding users to {repo}...')
+        print(f'Adding users {user_list} to {repo}...')
         git_init(repo, LOCAL_PATH, 'main', user_list)
         sleep(10)
 

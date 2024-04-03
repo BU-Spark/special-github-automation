@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 GITHUB_PAT = os.getenv('GITHUB_PAT')
-
+print(f"GitHub PAT: {GITHUB_PAT}")
 
 class Automation:
     GITHUB_PAT = None
@@ -22,6 +22,7 @@ class Automation:
             'Authorization': f'Bearer {GITHUB_PAT}',
             'X-GitHub-Api-Version': '2022-11-28'
         }
+        print(f"GitHub PAT: {GITHUB_PAT}")
     
     def extract_user_repo_from_ssh(self, ssh_url: str) -> Tuple[str, str]:
         """
@@ -43,6 +44,7 @@ class Automation:
             ssh_url_parts = ssh_url.split(':')[-1].split('/')
             username = ssh_url_parts[0]
             repo_name = ssh_url_parts[1].split('.')[0]
+            print(f"Username: {username}, Repo: {repo_name}")
             return username, repo_name
         except IndexError as e:
             raise ValueError("SSH URL is missing required parts") from e
@@ -170,6 +172,8 @@ class Automation:
 
         # Get the list of collaborators on the repository
         try:
+            print(f"Fetching collaborators for {username}/{repo_name}")
+            print(f'Headers: {self.HEADERS}')
             collaborators_response = requests.get(
                 f'https://api.github.com/repos/{username}/{repo_name}/collaborators',
                 headers=self.HEADERS,
@@ -295,7 +299,7 @@ class Automation:
         return result
 
 
-def main():
+def sheet():
 
     # path to the CSV file
     csv_file_path = 'rest.csv'
@@ -329,6 +333,26 @@ def main():
                 except Exception as e:
                     log_file.write(
                         f"Failed to update repo: {repo_ssh_url} with error: {str(e)}\n")
+
+def main():
+    # Open the log file in append mode
+    log_file_path = 'output.txt'
+    with open(log_file_path, 'a') as log_file:
+        usersmap = {
+            'git@github.com:spark-tests/initial.git': ['mochiakku', 's-alad']
+        }
+
+        for repo_ssh_url, users in usersmap.items():
+            print(f"Repo: {repo_ssh_url} has users: {users}")
+            try:
+                automation = Automation(GITHUB_PAT)
+                result = automation.set_repo_users(repo_ssh_url, users)
+                for status, message in result:
+                    log_file.write(f"{status}: {message}\n")
+            except Exception as e:
+                log_file.write(
+                    f"Failed to update repo: {repo_ssh_url} with error: {str(e)}\n")
+
 
 if __name__ == "__main__":
     main()

@@ -204,6 +204,56 @@ class Automation:
             raise Exception(
                 f"Failed to fetch collaborators: {collaborators_response.json().get('message', 'Unknown error')}")
         
+    def get_users_invited_repo(self, ssh_url: str) -> set[str]:
+        """
+        Retrieves a set of GitHub usernames who are invited collaborators on a given repository.
+
+        This function extracts the username and repository name from the provided SSH URL. It then makes a request to the GitHub API to fetch the list of invited collaborators on the specified repository. The function returns a set of GitHub usernames who have been invited to collaborate on the repository.
+
+        Args:
+            ssh_url (str): The SSH URL of the GitHub repository.
+
+        Returns:
+            set[str]: A set of GitHub usernames who are invited collaborators on the repository.
+
+        Raises:
+            Exception: If an error occurs during the API request or while processing the response.
+        """
+
+        username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
+
+        try:
+            invited_collaborators_response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/invitations',
+                headers=self.HEADERS,
+                timeout=10
+            )
+        except requests.exceptions.Timeout as e:
+            raise TimeoutError(
+                "The request to get invited collaborators timed out.") from e
+        except requests.exceptions.ConnectionError as e:
+            raise ConnectionError(
+                "Failed to establish a connection to the GitHub API.") from e
+        except requests.exceptions.RequestException as e:
+            raise Exception(
+                f"An error occurred while making the request: {e}") from e
+        except Exception as e:
+            raise Exception(
+                f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}") from e
+        
+        if invited_collaborators_response.status_code == 200:
+            invited_collaborators = {collaborator['login']
+                                    for collaborator in invited_collaborators_response.json()}
+            return invited_collaborators
+        elif invited_collaborators_response.status_code == 404:
+            raise FileNotFoundError("The repository was not found.")
+        elif invited_collaborators_response.status_code == 403:
+            raise PermissionError("Access to the repository is forbidden.")
+        else:
+            raise Exception(
+                f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}")
+        
+
     def remove_all_users_from_repo(self, ssh_url: str) -> list[tuple[int, str]]:
         """
         Removes all collaborators from a given repository using the get_users_on_repo function to fetch the list of collaborators.

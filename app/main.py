@@ -45,6 +45,17 @@ async def set_repo_users(request: Request):
     except Exception as e:
         return {"status": "failed", "error": str(e)}
 
+# route called check_invited_collaborators that takes in a repo ssh url and returns a list of invited collaborators
+@app.post("/check_invited_collaborators")
+async def check_invited_collaborators(request: Request):
+    data = await request.json()
+    repo_url = data["repo_url"]
+    try:
+        invited_collaborators = automation.get_users_invited_repo(repo_url)
+        return {"status": "success", "invited_collaborators": invited_collaborators}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
 # ======================================== run the app =========================================
     
 if __name__ == "__main__":

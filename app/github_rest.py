@@ -221,6 +221,7 @@ class Automation:
         """
 
         username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
+        print(f"Fetching invited collaborators for {username}/{repo_name}")
 
         try:
             invited_collaborators_response = requests.get(
@@ -242,8 +243,9 @@ class Automation:
                 f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}") from e
         
         if invited_collaborators_response.status_code == 200:
-            invited_collaborators = {collaborator['login']
-                                    for collaborator in invited_collaborators_response.json()}
+            print(f"Invited collaborators response: {invited_collaborators_response.json()}")
+            invited_collaborators = {invited_collaborators['invitee']['login']
+                                    for invited_collaborators in invited_collaborators_response.json()}
             return invited_collaborators
         elif invited_collaborators_response.status_code == 404:
             raise FileNotFoundError("The repository was not found.")

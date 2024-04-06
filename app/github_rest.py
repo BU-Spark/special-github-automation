@@ -254,7 +254,53 @@ class Automation:
         else:
             raise Exception(
                 f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}")
-        
+    
+    def change_user_permission(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> Tuple[int, Optional[str]]:
+        """
+        Changes the permission level of a user on a GitHub repository.
+
+        This function first extracts the username and repository name from the provided SSH URL. It then checks if the user exists on GitHub. If the user exists and has permissions on the specified repository, it attempts to change the user's permission level to the specified value. The function handles various HTTP status codes to provide meaningful feedback on the operation's outcome.
+
+        Args:
+            ssh_url (str): The SSH URL of the GitHub repository.
+            user (str): The username of the GitHub user to change the permission level for.
+            permission (Literal['pull', 'triage', 'push', 'maintain', 'admin']): The new permission level to assign to the user.
+
+        Returns:
+            Tuple[int, Optional[str]]: A tuple containing the HTTP status code and an optional error message.
+        Raises:
+            Exception: If an unexpected error occurs.
+            Timeout: If the request times out.
+
+        """
+        try:
+            username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
+
+            status_code, error_message = self.check_user_exists(user)
+            if error_message:
+                return status_code, error_message
+
+            # Check if the user has permissions on the specified repository
+            permissions_response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}/permission', headers=self.HEADERS, timeout=2)
+            if permissions_response.status_code != 200:
+                return permissions_response.status_code, 'User does not have permissions on the repository.'
+
+            # Change the user's permission level
+            change_permission_response = requests.put(
+                f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
+                headers=self.HEADERS,
+                json={'permission': permission},
+                timeout=2
+            )
+            if change_permission_response.status_code == 200:
+                return change_permission_response.status_code, 'User permission level changed successfully'
+            else:
+                return change_permission_response.status_code, change_permission_response.json()
+        except requests.exceptions.Timeout:
+            return -1, "Request timed out"
+        except Exception as e:
+            return -1, str(e)
 
     def remove_all_users_from_repo(self, ssh_url: str) -> list[tuple[int, str]]:
         """
@@ -292,8 +338,6 @@ class Automation:
 
         return result
     
-    # set difference, if already in repo instead of remove, change to hide
-
     def set_repo_users(self, ssh_url: str, desired_users: set[str]) -> list[tuple[int, str]]:
         """
         Sets the repository to only have the specified users. Removes users not in the desired list and adds users missing from the repository.
@@ -316,21 +360,28 @@ class Automation:
         result = []
 
         # Remove users not in the desired list
+        #for user in current_users:
+        #    if user not in desired_users:
+        #        try:
+        #            remove_response = requests.delete(
+        #                f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
+        #                headers=self.HEADERS,
+        #                timeout=2
+        #            )
+        #            if remove_response.status_code == 204:
+        #                result.append((204, f"{user} removed successfully"))
+        #            else:
+        #                result.append((remove_response.status_code,
+        #                            f"Failed to remove {user}"))
+        #        except Exception as e:
+        #            result.append((-1, str(e)))
+        
+        # Change permission of users not in the desired list to 'pull'
         for user in current_users:
             if user not in desired_users:
-                try:
-                    remove_response = requests.delete(
-                        f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
-                        headers=self.HEADERS,
-                        timeout=2
-                    )
-                    if remove_response.status_code == 204:
-                        result.append((204, f"{user} removed successfully"))
-                    else:
-                        result.append((remove_response.status_code,
-                                    f"Failed to remove {user}"))
-                except Exception as e:
-                    result.append((-1, str(e)))
+                res = self.change_user_permission(ssh_url, user, 'pull')
+                result.append(res)
+                
 
         # Add missing users
         for user in desired_users-current_users:

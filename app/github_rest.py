@@ -292,6 +292,8 @@ class Automation:
 
         return result
     
+    # set difference, if already in repo instead of remove, change to hide
+
     def set_repo_users(self, ssh_url: str, desired_users: set[str]) -> list[tuple[int, str]]:
         """
         Sets the repository to only have the specified users. Removes users not in the desired list and adds users missing from the repository.

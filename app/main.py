@@ -39,8 +39,10 @@ async def set_repo_users(request: Request):
     data = await request.json()
     repo_url = data["repo_url"]
     usernames = data["usernames"]
+    print("setting repo with:", repo_url, usernames)
     try:
-        automation.set_repo_users(repo_url, usernames)
+        r = automation.set_repo_users(repo_url, usernames)
+        print(r)
         return {"status": "success"}
     except Exception as e:
         return {"status": "failed", "error": str(e)}

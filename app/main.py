@@ -16,7 +16,7 @@ GITHUB_PAT = os.getenv('GITHUB_PAT')
 
 # Creating a FastAPI instance
 app = FastAPI()
-automation = gh.Automation(GITHUB_PAT)
+automation = gh.Automation(GITHUB_PAT, 'spark-tests')
 
 # Setting up CORS
 app.add_middleware(
@@ -45,22 +45,6 @@ async def set_repo_users(request: Request):
     print("setting repo with:", ssh_url, usernames)
     try:
         r = automation.set_repo_users(ssh_url, desired_users=usernames)
-        print(r)
-        return {"status": r}
-    except Exception as e:
-        return {"status": "failed", "error": str(e)}
-    
-# route called set_user_repos that takes in a username and a list of repo https urls
-@app.post("/set_user_repos")
-async def set_user_repos(request: Request):
-    data = await request.json()
-    username: str = data["username"]
-    https_urls: list[str] = data["repos"]
-    ssh_urls = [url.replace("https://github.com/", "git@github.com:") for url in https_urls]
-    
-    print(username, ssh_urls)
-    try:
-        r = automation.set_user_repos(ssh_urls, username)
         print(r)
         return {"status": r}
     except Exception as e:

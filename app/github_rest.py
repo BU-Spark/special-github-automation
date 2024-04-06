@@ -1,3 +1,4 @@
+# =========================================== imports =============================================
 import requests
 import csv
 import os
@@ -5,25 +6,26 @@ import os
 from typing import Literal, Optional
 from dotenv import load_dotenv
 
+# =========================================== env setup ===========================================
 
-# Load environment variables from .env file
 load_dotenv()
 GITHUB_PAT = os.getenv('GITHUB_PAT')
-print(f"GitHub PAT: {GITHUB_PAT}")
+
+# =========================================== automation ==========================================
 
 class Automation:
     GITHUB_PAT = None
     HEADERS = None
-    ORG_NAME = 'spark-tests'
-
-    def __init__(self, GITHUB_PAT: str):
+    ORG_NAME = None
+    
+    def __init__(self, GITHUB_PAT: str, ORG_NAME: str):
         self.GITHUB_PAT = GITHUB_PAT
+        self.ORG_NAME = ORG_NAME
         self.HEADERS = {
             'Accept': 'application/vnd.github+json',
             'Authorization': f'Bearer {GITHUB_PAT}',
             'X-GitHub-Api-Version': '2022-11-28'
         }
-        print(f"GitHub PAT: {GITHUB_PAT}")
     
     def get_organization_repositories(self) -> list[str]:
         """
@@ -492,6 +494,30 @@ class Automation:
         except Exception as e:
             return -1, str(e)
     
+    def change_all_users_permission(self, ssh_url: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> list[tuple[int, str]]:
+        """
+        Changes the permission level of all collaborators on a given repository.
+
+        Args:
+            ssh_url (str): The SSH URL of the GitHub repository.
+            permission (Literal['pull', 'triage', 'push', 'maintain', 'admin']): The new permission level to assign to all collaborators.
+
+        Returns:
+            list[tuple[int, str]]: A list of tuples, each containing the HTTP status code and a message indicating the success or failure of the operation.
+        """
+        try:
+            collaborators = self.get_users_on_repo(ssh_url)
+        except Exception as e:
+            return [(-1, str(e))]
+
+        result = []
+        try:
+            for collaborator in collaborators:
+                res = self.change_user_permission(ssh_url, collaborator, permission)
+                result.append(res)
+        except Exception as e:
+            result.append((-1, str(e)))
+    
     def set_repo_users(self, ssh_url: str, desired_users: set[str]) -> list[tuple[int, str]]:
         """
         Sets the repository to only have the specified users. Removes users not in the desired list and adds users missing from the repository.
@@ -557,20 +583,7 @@ class Automation:
 
         return result
 
-    def set_user_repos(self, ssh_urls: list[str], username: str) -> list[tuple[int, str]]:
-        """
-        Sets the user to have access to the specified repositories.
-
-        Args:
-            ssh_urls (list[str]): A list of SSH URLs of the GitHub repositories.
-            username (str): The username of the GitHub user to add to the repositories.
-
-        Returns:
-            list[tuple[int, str]]: A list of tuples, each containing the HTTP status code and a message indicating the success or failure of each operation.
-        """
-        result = []
-                
-        return result
+# =========================================== runs =============================================
 
 def sheet():
 
@@ -618,7 +631,7 @@ def main():
         for repo_ssh_url, users in usersmap.items():
             print(f"Repo: {repo_ssh_url} has users: {users}")
             try:
-                automation = Automation(GITHUB_PAT)
+                automation = Automation(GITHUB_PAT, 'spark-tests')
                 result = automation.set_repo_users(repo_ssh_url, users)
                 for status, message in result:
                     log_file.write(f"{status}: {message}\n")
@@ -627,7 +640,7 @@ def main():
                     f"Failed to update repo: {repo_ssh_url} with error: {str(e)}\n")
 
 def test():
-    automation = Automation(GITHUB_PAT)
+    automation = Automation(GITHUB_PAT, 'spark-tests')
     print(automation.get_organization_repositories())
     inital_ssh_url = automation.get_repository_ssh_url('initial')
     byte_ssh_url = automation.get_repository_ssh_url('byte')

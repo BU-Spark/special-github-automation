@@ -1,5 +1,6 @@
 # =========================================== imports =============================================
 
+from typing import List, Tuple
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -68,14 +69,13 @@ async def check_invited_collaborators(request: Request):
 @app.post("/add_user_to_projects")
 async def add_user_to_projects(request: Request):
     data = await request.json()
-    repo_url = data["repo_url"]
     username = data["username"]
-    project_names = data["project_names"]
-    
-    repo_url = repo_url.replace("https://github.com/", "git@github.com:")
+    projects_urls: List[str] = data["projects"]
+    print(username)
+    print(projects_urls)
     
     try:
-        res = automation.add_user_to_projects(repo_url, username, project_names)
+        res = automation.add_user_to_projects(username, projects_urls)
         print(res)
         return {"status": "success"}
     except Exception as e:

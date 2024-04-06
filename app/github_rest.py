@@ -2,7 +2,7 @@ import requests
 import csv
 import os
 
-from typing import Literal, Optional, Tuple
+from typing import List, Literal, Optional, Tuple
 from dotenv import load_dotenv
 
 
@@ -101,7 +101,6 @@ class Automation:
             # Add the user to the project with the specified permission
             response = requests.put(f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
                                     headers=self.HEADERS,
-
                                     json={'permission': permission}, timeout=2)
             if response.status_code == 201:
                 return response.status_code, 'User added to the project with the specified permission'
@@ -112,8 +111,8 @@ class Automation:
         except Exception as e:
             return -1, str(e)
     
-    def add_user_to_projects(self, ssh_url: str, user: str, project_names: list[str]) -> list[tuple[int, str]]:    
-        return [self.add_user_to_project(ssh_url, user, project_name) for project_name in project_names]
+    def add_user_to_projects(self, user: str, projects_urls: List[str]) -> list[tuple[int, str]]:    
+        return [self.add_user_to_project(project_url, user, "push") for project_url in projects_urls]
     
     def remote_from_from_project(self, ssh_url: str, user: str) -> Tuple[int, Optional[str]]:
         """

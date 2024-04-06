@@ -56,7 +56,7 @@ async def check_invited_collaborators(request: Request):
     data = await request.json()
     repo_url = data["repo_url"]
     
-    repo_url = repo_url.replace("https://github.com/", "git@github,com:")
+    repo_url = repo_url.replace("https://github.com/", "git@github.com:")
     
     try:
         invited_collaborators = automation.get_users_invited_repo(repo_url)

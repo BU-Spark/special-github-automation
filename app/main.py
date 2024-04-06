@@ -34,51 +34,66 @@ app.add_middleware(
 async def root():
     return {"/": "/"}
     
-# route called set_repo_users that takes in a repo ssh url, and a list of usernames
+# route called set_repo_users that takes in a repo https url, and a list of usernames
 @app.post("/set_repo_users")
 async def set_repo_users(request: Request):
     data = await request.json()
-    repo_url = data["repo_url"]
-    usernames = data["usernames"]
+    usernames: list[str] = data["usernames"]
+    https_url: str = data["repo_url"]
+    ssh_url = https_url.replace("https://github.com/", "git@github.com:")
     
-    repo_url = repo_url.replace("https://github.com/", "git@github.com:")
-    
-    print("setting repo with:", repo_url, usernames)
+    print("setting repo with:", ssh_url, usernames)
     try:
-        r = automation.set_repo_users(repo_url, usernames)
+        r = automation.set_repo_users(ssh_url, desired_users=usernames)
         print(r)
-        return {"status": "success"}
+        return {"status": r}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+    
+# route called set_user_repos that takes in a username and a list of repo https urls
+@app.post("/set_user_repos")
+async def set_user_repos(request: Request):
+    data = await request.json()
+    username: str = data["username"]
+    https_urls: list[str] = data["repos"]
+    ssh_urls = [url.replace("https://github.com/", "git@github.com:") for url in https_urls]
+    
+    print(username, ssh_urls)
+    try:
+        r = automation.set_user_repos(ssh_urls, username)
+        print(r)
+        return {"status": r}
     except Exception as e:
         return {"status": "failed", "error": str(e)}
 
-# route called check_invited_collaborators that takes in a repo ssh url and returns a list of invited collaborators
+# route called check_invited_collaborators that takes in a repo https url and returns a list of invited collaborators
 @app.post("/check_invited_collaborators")
 async def check_invited_collaborators(request: Request):
     data = await request.json()
-    repo_url = data["repo_url"]
+    https_url = data["repo_url"]
+    ssh_url = https_url.replace("https://github.com/", "git@github.com:")
     
-    repo_url = repo_url.replace("https://github.com/", "git@github.com:")
-    
+    print("checking invited collaborators for:", ssh_url)
     try:
-        invited_collaborators = automation.get_users_invited_repo(repo_url)
-        return {"status": "success", "invited_collaborators": invited_collaborators}
+        invited_collaborators = automation.get_users_invited_repo(ssh_url)
+        print(invited_collaborators)
+        return {"invited_collaborators": invited_collaborators}
     except Exception as e:
         return {"status": "failed", "error": str(e)}
     
-# route called add_user_to_projects that takes in a repo ssh url, a username, and a list of project names
+# route called add_user_to_projects that takes in a username and a list of repo https urls
 @app.post("/add_user_to_projects")
 async def add_user_to_projects(request: Request):
     data = await request.json()
-    username = data["username"]
-    projects_urls: List[str] = data["projects"]
-    projects_urls = [url.replace("https://github.com/", "git@github.com:") for url in projects_urls]
-    print(username)
-    print(projects_urls)
+    username: str = data["username"]
+    https_urls: list[str] = data["projects"]
+    ssh_urls = [url.replace("https://github.com/", "git@github.com:") for url in https_urls]
+    print(username, ssh_urls)
     
     try:
-        res = automation.add_user_to_projects(username, projects_urls)
-        print(res)
-        return {"status": "success"}
+        r = automation.add_user_to_projects(ssh_urls, username, "push")
+        print(r)
+        return {"status": r}
     except Exception as e:
         return {"status": "failed", "error": str(e)}
 

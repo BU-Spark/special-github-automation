@@ -2,7 +2,7 @@ import requests
 import csv
 import os
 
-from typing import List, Literal, Optional, Tuple
+from typing import Literal, Optional
 from dotenv import load_dotenv
 
 
@@ -25,7 +25,7 @@ class Automation:
         print(f"GitHub PAT: {GITHUB_PAT}")
     
     
-    def extract_user_repo_from_ssh(self, ssh_url: str) -> Tuple[str, str]:
+    def extract_user_repo_from_ssh(self, ssh_url: str) -> tuple[str, str]:
         """
         Extracts the username and repository name from a given SSH URL.
 
@@ -50,7 +50,7 @@ class Automation:
         except IndexError as e:
             raise ValueError("SSH URL is missing required parts") from e
 
-    def check_user_exists(self, user: str) -> Tuple[int, Optional[str]]:
+    def check_user_exists(self, user: str) -> tuple[int, Optional[str]]:
         """
         Checks if a GitHub user exists.
 
@@ -74,7 +74,7 @@ class Automation:
         else:
             return response.status_code, f'An error occurred: {response.json()}'
         
-    def add_user_to_project(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> Tuple[int, Optional[str]]:
+    def add_user_to_project(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> tuple[int, Optional[str]]:
         """
         Adds a user to a GitHub project with the specified permission.
 
@@ -112,10 +112,10 @@ class Automation:
         except Exception as e:
             return -1, str(e)
     
-    def add_user_to_projects(self, user: str, projects_urls: List[str]) -> list[tuple[int, str]]:    
-        return [self.add_user_to_project(project_url, user, "push") for project_url in projects_urls]
+    def add_user_to_projects(self, ssh_urls: list[str], user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> list[tuple[int, str]]:    
+        return [self.add_user_to_project(ssh_url, user, permission) for ssh_url in ssh_urls]
     
-    def remote_from_from_project(self, ssh_url: str, user: str) -> Tuple[int, Optional[str]]:
+    def remote_from_from_project(self, ssh_url: str, user: str) -> tuple[int, Optional[str]]:
         """
         Removes a user from a GitHub project.
 
@@ -258,7 +258,7 @@ class Automation:
             raise Exception(
                 f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}")
     
-    def change_user_permission(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> Tuple[int, Optional[str]]:
+    def change_user_permission(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> tuple[int, Optional[str]]:
         """
         Changes the permission level of a user on a GitHub repository.
 

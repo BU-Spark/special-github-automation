@@ -39,6 +39,9 @@ async def set_repo_users(request: Request):
     data = await request.json()
     repo_url = data["repo_url"]
     usernames = data["usernames"]
+    
+    repo_url = repo_url.replace("https://github.com/", "git@github.com:")
+    
     print("setting repo with:", repo_url, usernames)
     try:
         r = automation.set_repo_users(repo_url, usernames)

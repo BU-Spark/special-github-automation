@@ -112,6 +112,9 @@ class Automation:
         except Exception as e:
             return -1, str(e)
     
+    def add_user_to_projects(self, ssh_url: str, user: str, project_names: list[str]) -> list[tuple[int, str]]:    
+        return [self.add_user_to_project(ssh_url, user, project_name) for project_name in project_names]
+    
     def remote_from_from_project(self, ssh_url: str, user: str) -> Tuple[int, Optional[str]]:
         """
         Removes a user from a GitHub project.

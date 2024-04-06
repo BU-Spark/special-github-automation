@@ -81,9 +81,9 @@ async def check_invited_collaborators(request: Request):
     except Exception as e:
         return {"status": "failed", "error": str(e)}
     
-# route called add_user_to_projects that takes in a username and a list of repo https urls
-@app.post("/add_user_to_projects")
-async def add_user_to_projects(request: Request):
+# route called add_user_to_repos that takes in a username and a list of repo https urls
+@app.post("/add_user_to_repos")
+async def add_user_to_repos(request: Request):
     data = await request.json()
     username: str = data["username"]
     https_urls: list[str] = data["projects"]
@@ -91,7 +91,7 @@ async def add_user_to_projects(request: Request):
     print(username, ssh_urls)
     
     try:
-        r = automation.add_user_to_projects(ssh_urls, username, "push")
+        r = automation.add_user_to_repos(ssh_urls, username, "push")
         print(r)
         return {"status": r}
     except Exception as e:

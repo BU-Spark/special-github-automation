@@ -14,6 +14,7 @@ print(f"GitHub PAT: {GITHUB_PAT}")
 class Automation:
     GITHUB_PAT = None
     HEADERS = None
+    ORG_NAME = 'spark-tests'
 
     def __init__(self, GITHUB_PAT: str):
         self.GITHUB_PAT = GITHUB_PAT
@@ -24,6 +25,63 @@ class Automation:
         }
         print(f"GitHub PAT: {GITHUB_PAT}")
     
+    def get_organization_repositories(self) -> list[str]:
+        """
+        Retrieves a list of repositories belonging to the organization.
+
+        Returns:
+            list[str]: A list of repository names belonging to the organization.
+        """
+        try:
+            response = requests.get(
+                f'https://api.github.com/orgs/{self.ORG_NAME}/repos', headers=self.HEADERS, timeout=2)
+            
+            if response.status_code == 200:
+                return [repo['name'] for repo in response.json()]
+            
+            elif response.status_code == 404:
+                raise FileNotFoundError(f"Organization '{self.ORG_NAME}' not found.")
+            elif response.status_code == 401:
+                raise PermissionError("Unauthorized: Invalid GitHub PAT.")
+            elif response.status_code == 403 or response.status_code == 429:
+                raise PermissionError("Forbidden: Rate limit exceeded.")
+            else:
+                raise Exception(f"Failed to fetch repositories: {response.json().get('message', 'Unknown error')}")
+                
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError("Failed to establish a connection to the GitHub API.")
+        except requests.exceptions.Timeout:
+            raise TimeoutError("The request to get repositories timed out.")
+        except Exception as e:
+            raise Exception(f"Failed to fetch repositories: {e}") from e
+    
+    def get_repository_ssh_url(self, repo_name: str) -> str:
+        """
+        Retrieves the SSH URL of a repository belonging to the organization.
+
+        Args:
+            repo_name (str): The name of the repository.
+
+        Returns:
+            str: The SSH URL of the repository.
+        """
+        try:
+            url = f'https://api.github.com/repos/{self.ORG_NAME}/{repo_name}'
+            response = requests.get(url, headers=self.HEADERS, timeout=2)
+            if response.status_code == 200:
+                return response.json()['ssh_url']
+            
+            elif response.status_code == 404:
+                raise FileNotFoundError(f"Repository '{repo_name}' not found.")
+            elif response.status_code == 401:
+                raise PermissionError("Unauthorized: Invalid GitHub PAT.")
+            elif response.status_code == 403 or response.status_code == 429:
+                raise PermissionError("Forbidden: Rate limit exceeded.")
+            else:
+                raise Exception(f"Failed to fetch repository URL: {response.json().get('message', 'Unknown error')}")
+            
+        except Exception as e:
+            raise Exception(f"Failed to fetch repository URL: {e}") from e
     
     def extract_user_repo_from_ssh(self, ssh_url: str) -> tuple[str, str]:
         """
@@ -45,7 +103,6 @@ class Automation:
             ssh_url_parts = ssh_url.split(':')[-1].split('/')
             username = ssh_url_parts[0]
             repo_name = ssh_url_parts[1].split('.')[0]
-            print(f"Username: {username}, Repo: {repo_name}")
             return username, repo_name
         except IndexError as e:
             raise ValueError("SSH URL is missing required parts") from e
@@ -74,7 +131,7 @@ class Automation:
         else:
             return response.status_code, f'An error occurred: {response.json()}'
         
-    def add_user_to_project(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> tuple[int, Optional[str]]:
+    def add_user_to_repo(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> tuple[int, Optional[str]]:
         """
         Adds a user to a GitHub project with the specified permission.
 
@@ -112,18 +169,18 @@ class Automation:
         except Exception as e:
             return -1, str(e)
     
-    def add_user_to_projects(self, ssh_urls: list[str], user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> list[tuple[int, str]]:    
-        return [self.add_user_to_project(ssh_url, user, permission) for ssh_url in ssh_urls]
+    def add_user_to_repos(self, ssh_urls: list[str], user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> list[tuple[int, str]]:    
+        return [self.add_user_to_repo(ssh_url, user, permission) for ssh_url in ssh_urls]
     
-    def remote_from_from_project(self, ssh_url: str, user: str) -> tuple[int, Optional[str]]:
+    def revoke_user_invitation(self, ssh_url: str, user: str) -> tuple[int, Optional[str]]:
         """
-        Removes a user from a GitHub project.
+        Revokes an invitation to collaborate on a GitHub repository.
 
-        This function first extracts the username and repository name from the provided SSH URL. It then checks if the user exists on GitHub. If the user exists and has permissions on the specified repository, it attempts to remove the user from the repository. The function handles various HTTP status codes to provide meaningful feedback on the operation's outcome.
+        This function first extracts the username and repository name from the provided SSH URL. It then checks if the user exists on GitHub. If the user exists and has been invited to collaborate on the specified repository, it attempts to revoke the user's invitation. The function handles various HTTP status codes to provide meaningful feedback on the operation's outcome.
 
         Args:
             ssh_url (str): The SSH URL of the GitHub repository.
-            user (str): The username of the GitHub user to remove from the project.
+            user (str): The username of the GitHub user to revoke the invitation for.
 
         Returns:
             Tuple[int, Optional[str]]: A tuple containing the HTTP status code and an optional error message.
@@ -138,6 +195,60 @@ class Automation:
             status_code, error_message = self.check_user_exists(user)
             if error_message:
                 return status_code, error_message
+
+            # Check if the user has been invited to collaborate on the specified repository
+            invited_collaborators_response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/invitations',
+                headers=self.HEADERS,
+                timeout=2
+            )
+            if invited_collaborators_response.status_code != 200:
+                return invited_collaborators_response.status_code, 'Failed to fetch invited collaborators'
+            
+            invited_collaborators = invited_collaborators_response.json()
+            for invited_collaborator in invited_collaborators:
+                if invited_collaborator['invitee']['login'] == user:
+                    # Revoke the user's invitation
+                    revoke_response = requests.delete(
+                        f'https://api.github.com/repos/{username}/{repo_name}/invitations/{invited_collaborator["id"]}',
+                        headers=self.HEADERS,
+                        timeout=2
+                    )
+                    if revoke_response.status_code == 204:
+                        return revoke_response.status_code, 'User invitation revoked successfully'
+                    else:
+                        return revoke_response.status_code, revoke_response.json()
+
+            return 404, 'User has not been invited to collaborate on the repository.'
+        except requests.exceptions.Timeout:
+            return -1, "Request timed out"
+        except Exception as e:
+            return -1, str(e)
+    
+    def remove_user_from_repo(self, ssh_url: str, user: str) -> tuple[int, Optional[str]]:
+        """
+        Removes a user from a GitHub repo.
+
+        This function first extracts the username and repository name from the provided SSH URL. It then checks if the user exists on GitHub. If the user exists and has permissions on the specified repository, it attempts to remove the user from the repository. The function handles various HTTP status codes to provide meaningful feedback on the operation's outcome.
+
+        Args:
+            ssh_url (str): The SSH URL of the GitHub repository.
+            user (str): The username of the GitHub user to remove from the repo.
+
+        Returns:
+            Tuple[int, Optional[str]]: A tuple containing the HTTP status code and an optional error message.
+        Raises:
+            Exception: If an unexpected error occurs.
+            Timeout: If the request times out.
+
+        """
+        try:
+            username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
+
+            status_code, error_message = self.check_user_exists(user)
+            if error_message:
+                return status_code, error_message
+            
             # Check if the user has permissions on the specified repository
             permissions_response = requests.get(
                 f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}/permission', headers=self.HEADERS, timeout=2)
@@ -155,7 +266,83 @@ class Automation:
             return -1, "Request timed out"
         except Exception as e:
             return -1, str(e)
-        
+    
+    def remove_all_users_from_repo(self, ssh_url: str) -> list[tuple[int, str]]:
+        """
+        Removes all collaborators from a given repository using the get_users_on_repo function to fetch the list of collaborators.
+
+        Args:
+            ssh_url (str): The SSH URL of the GitHub repository.
+
+        Returns:
+            list[tuple[int, str]]: A list of tuples, each containing the HTTP status code and a message indicating the success or failure of the operation.
+        """
+        try:
+            collaborators = self.get_users_on_repo(ssh_url)
+        except Exception as e:
+            return -1, str(e)
+
+        username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
+
+        result = []
+        # Attempt to remove each collaborator
+        for collaborator in collaborators:
+            try:
+                remove_response = requests.delete(
+                    f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{collaborator}',
+                    headers=self.HEADERS,
+                    timeout=2
+                )
+                if remove_response.status_code not in [204, 404]:
+                    result.append((remove_response.status_code,
+                                    f"Failed to remove {collaborator}"))
+                result.append((remove_response.status_code,
+                                f"{collaborator} removed successfully"))
+            except Exception as e:
+                result.append((-1, str(e)))
+
+        return result
+    
+    def remove_or_revoke_user(self, ssh_url: str, user: str) -> tuple[int, Optional[str]]:
+        """
+        Removes a user from a GitHub repository or revokes their invitation if they have not accepted it.
+
+        This function first extracts the username and repository name from the provided SSH URL. It then checks if the user exists on GitHub. If the user exists and has permissions on the specified repository, it attempts to remove the user from the repository. If the user has not accepted an invitation to collaborate on the repository, the function revokes the invitation instead. The function handles various HTTP status codes to provide meaningful feedback on the operation's outcome.
+
+        Args:
+            ssh_url (str): The SSH URL of the GitHub repository.
+            user (str): The username of the GitHub user to remove or revoke the invitation for.
+
+        Returns:
+            Tuple[int, Optional[str]]: A tuple containing the HTTP status code and an optional error message.
+        Raises:
+            Exception: If an unexpected error occurs.
+            Timeout: If the request times out.
+
+        """
+        try:
+            username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
+
+            status_code, error_message = self.check_user_exists(user)
+            if error_message:
+                return status_code, error_message
+
+            # Check if the user has permissions on the specified repository
+            permissions_response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}/permission', headers=self.HEADERS, timeout=2)
+            if permissions_response.status_code == 200:
+                # User has permissions on the repository, remove them
+                return self.remove_user_from_repo(ssh_url, user)
+            elif permissions_response.status_code == 404:
+                # User does not have permissions on the repository, revoke their invitation
+                return self.revoke_user_invitation(ssh_url, user)
+            else:
+                return permissions_response.status_code, 'An error occurred while checking user permissions'
+        except requests.exceptions.Timeout:
+            return -1, "Request timed out"
+        except Exception as e:
+            return -1, str(e)
+    
     def get_users_on_repo(self, ssh_url: str) -> set[str]:
         """
         Retrieves a set of GitHub usernames who are collaborators on a given repository.
@@ -232,6 +419,19 @@ class Automation:
                 headers=self.HEADERS,
                 timeout=10
             )
+            if invited_collaborators_response.status_code == 200:
+                print(f"Invited collaborators response: {invited_collaborators_response.json()}")
+                invited_collaborators = {invited_collaborators['invitee']['login']
+                                        for invited_collaborators in invited_collaborators_response.json()}
+                return invited_collaborators
+            elif invited_collaborators_response.status_code == 404:
+                raise FileNotFoundError("The repository was not found.")
+            elif invited_collaborators_response.status_code == 403:
+                raise PermissionError("Access to the repository is forbidden.")
+            else:
+                raise Exception(
+                    f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}")
+                
         except requests.exceptions.Timeout as e:
             raise TimeoutError(
                 "The request to get invited collaborators timed out.") from e
@@ -244,19 +444,6 @@ class Automation:
         except Exception as e:
             raise Exception(
                 f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}") from e
-        
-        if invited_collaborators_response.status_code == 200:
-            print(f"Invited collaborators response: {invited_collaborators_response.json()}")
-            invited_collaborators = {invited_collaborators['invitee']['login']
-                                    for invited_collaborators in invited_collaborators_response.json()}
-            return invited_collaborators
-        elif invited_collaborators_response.status_code == 404:
-            raise FileNotFoundError("The repository was not found.")
-        elif invited_collaborators_response.status_code == 403:
-            raise PermissionError("Access to the repository is forbidden.")
-        else:
-            raise Exception(
-                f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}")
     
     def change_user_permission(self, ssh_url: str, user: str, permission: Literal['pull', 'triage', 'push', 'maintain', 'admin']) -> tuple[int, Optional[str]]:
         """
@@ -304,42 +491,6 @@ class Automation:
             return -1, "Request timed out"
         except Exception as e:
             return -1, str(e)
-
-    def remove_all_users_from_repo(self, ssh_url: str) -> list[tuple[int, str]]:
-        """
-        Removes all collaborators from a given repository using the get_users_on_repo function to fetch the list of collaborators.
-
-        Args:
-            ssh_url (str): The SSH URL of the GitHub repository.
-
-        Returns:
-            list[tuple[int, str]]: A list of tuples, each containing the HTTP status code and a message indicating the success or failure of the operation.
-        """
-        try:
-            collaborators = self.get_users_on_repo(ssh_url)
-        except Exception as e:
-            return -1, str(e)
-
-        username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
-
-        result = []
-        # Attempt to remove each collaborator
-        for collaborator in collaborators:
-            try:
-                remove_response = requests.delete(
-                    f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{collaborator}',
-                    headers=self.HEADERS,
-                    timeout=2
-                )
-                if remove_response.status_code not in [204, 404]:
-                    result.append((remove_response.status_code,
-                                    f"Failed to remove {collaborator}"))
-                result.append((remove_response.status_code,
-                                f"{collaborator} removed successfully"))
-            except Exception as e:
-                result.append((-1, str(e)))
-
-        return result
     
     def set_repo_users(self, ssh_url: str, desired_users: set[str]) -> list[tuple[int, str]]:
         """
@@ -406,6 +557,20 @@ class Automation:
 
         return result
 
+    def set_user_repos(self, ssh_urls: list[str], username: str) -> list[tuple[int, str]]:
+        """
+        Sets the user to have access to the specified repositories.
+
+        Args:
+            ssh_urls (list[str]): A list of SSH URLs of the GitHub repositories.
+            username (str): The username of the GitHub user to add to the repositories.
+
+        Returns:
+            list[tuple[int, str]]: A list of tuples, each containing the HTTP status code and a message indicating the success or failure of each operation.
+        """
+        result = []
+                
+        return result
 
 def sheet():
 
@@ -461,6 +626,12 @@ def main():
                 log_file.write(
                     f"Failed to update repo: {repo_ssh_url} with error: {str(e)}\n")
 
-
+def test():
+    automation = Automation(GITHUB_PAT)
+    print(automation.get_organization_repositories())
+    inital_ssh_url = automation.get_repository_ssh_url('initial')
+    byte_ssh_url = automation.get_repository_ssh_url('byte')
+    print(automation.remove_or_revoke_user(byte_ssh_url, ''))
+    
 if __name__ == "__main__":
-    main()
+    test()

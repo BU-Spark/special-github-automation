@@ -71,6 +71,7 @@ async def add_user_to_projects(request: Request):
     data = await request.json()
     username = data["username"]
     projects_urls: List[str] = data["projects"]
+    projects_urls = [url.replace("https://github.com/", "git@github.com:") for url in projects_urls]
     print(username)
     print(projects_urls)
     

@@ -65,6 +65,17 @@ async def check_invited_collaborators(request: Request):
     except Exception as e:
         return {"status": "failed", "error": str(e)}
     
+# route called re-invite expired collaborators that re-invites expired collaborators based on a cron job
+@app.post("/reinvite_expired_collaborators")
+async def reinvite_expired_collaborators(request: Request):
+    try:
+        r = automation.reinvite_all_expired_users_to_repos()
+        print(r)
+        return {"status": r}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+    
+    
 # route called add_user_to_repos that takes in a username and a list of repo https urls
 @app.post("/add_user_to_repos")
 async def add_user_to_repos(request: Request):

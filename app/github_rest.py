@@ -413,7 +413,6 @@ class Automation:
         """
 
         username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
-        print(f"Fetching invited collaborators for {username}/{repo_name}")
 
         try:
             invited_collaborators_response = requests.get(
@@ -422,7 +421,6 @@ class Automation:
                 timeout=10
             )
             if invited_collaborators_response.status_code == 200:
-                print(f"Invited collaborators response: {invited_collaborators_response.json()}")
                 invited_collaborators = {invited_collaborators['invitee']['login']
                                         for invited_collaborators in invited_collaborators_response.json()}
                 return invited_collaborators
@@ -583,6 +581,28 @@ class Automation:
 
         return result
 
+    def reinvite_all_expired_users_to_repos(self):
+        """
+        Re-invites all users who have had their invitations expire to all repositories in the organization.
+
+        Returns:
+            list[tuple[str, int, str]]: A list of tuples, each containing the repository name, HTTP status code, and a message indicating the success or failure of the operation.
+        """
+        repositories = self.get_organization_repositories()
+        result = []
+        for repo in repositories:
+            ssh_url = self.get_repository_ssh_url(repo)
+            try:
+                invited_collaborators = self.get_users_invited_repo(ssh_url)
+                print(f"Invited collaborators for {repo}: {invited_collaborators}")
+                for user in invited_collaborators:
+                    remove_res = self.revoke_user_invitation(ssh_url, user)
+                    res = self.add_user_to_repo(ssh_url, user, 'push')
+                    result.append((repo, res[0], res[1]))
+            except Exception as e:
+                result.append((repo, -1, str(e)))
+        return result
+
 # =========================================== runs =============================================
 
 def sheet():
@@ -642,9 +662,14 @@ def main():
 def test():
     automation = Automation(GITHUB_PAT, 'spark-tests')
     print(automation.get_organization_repositories())
-    inital_ssh_url = automation.get_repository_ssh_url('initial')
+    #inital_ssh_url = automation.get_repository_ssh_url('initial')
     byte_ssh_url = automation.get_repository_ssh_url('byte')
-    print(automation.remove_or_revoke_user(byte_ssh_url, ''))
+    invited_to_byte = automation.get_users_invited_repo(byte_ssh_url)
+    print("--")
+    print(invited_to_byte)
+    #print(automation.remove_or_revoke_user(byte_ssh_url, ''))
+    invited = automation.reinvite_all_expired_users_to_repos()
+    print(invited)
     
 if __name__ == "__main__":
     test()

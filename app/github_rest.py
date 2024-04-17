@@ -522,6 +522,8 @@ class Automation:
             )
             if change_permission_response.status_code == 200:
                 return change_permission_response.status_code, 'User permission level changed successfully'
+            elif change_permission_response.status_code == 204:
+                return change_permission_response.status_code, 'User permission level updated'
             else:
                 return change_permission_response.status_code, change_permission_response.json()
         except requests.exceptions.Timeout:
@@ -592,12 +594,22 @@ class Automation:
         #            result.append((-1, str(e)))
         
         # Change permission of users not in the desired list to 'pull'
+        
+        print(f"Current users: {current_users}")
+        
         for user in current_users:
             if user not in desired_users:
                 res = self.change_user_permission(ssh_url, user, 'pull')
                 result.append(res)
-                
-
+        
+        print(f"Desired users: {desired_users}")
+        
+        # ensure all current users have write access
+        for user in current_users:
+            if user in desired_users:
+                res = self.change_user_permission(ssh_url, user, 'push')
+                result.append(res)
+        
         # Add missing users
         for user in desired_users-current_users:
             if user not in current_users:
@@ -700,10 +712,17 @@ def test():
     automation = Automation(GITHUB_PAT, 'spark-tests')
     print(automation.GITHUB_PAT)
     
-    #inital_ssh_url = automation.get_repository_ssh_url('initial')
+    inital_ssh_url = automation.get_repository_ssh_url('initial')
     #byte_ssh_url = automation.get_repository_ssh_url('byte')
     #invited_to_byte = automation.get_users_invited_repo(byte_ssh_url)
-    #print("--")
+    
+    #set_byte_users = automation.set_repo_users(byte_ssh_url, {'s-alad'})
+    #print(set_byte_users)
+    print(inital_ssh_url)
+    set_initial_users = automation.set_repo_users(inital_ssh_url, {'s-alad', 'mochiakku'})
+    print(set_initial_users)
+    
+    print("--")
     #print(invited_to_byte)
     #print(automation.remove_or_revoke_user(byte_ssh_url, ''))
     #invited = automation.reinvite_all_expired_users_to_repos()

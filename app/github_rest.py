@@ -1,4 +1,5 @@
 # =========================================== imports =============================================
+import json
 import requests
 import csv
 import os
@@ -420,9 +421,45 @@ class Automation:
                 headers=self.HEADERS,
                 timeout=10
             )
+            print(json.dumps(invited_collaborators_response.json(), indent=4))
             if invited_collaborators_response.status_code == 200:
                 invited_collaborators = {invited_collaborators['invitee']['login']
                                         for invited_collaborators in invited_collaborators_response.json()}
+                return invited_collaborators
+            elif invited_collaborators_response.status_code == 404:
+                raise FileNotFoundError("The repository was not found.")
+            elif invited_collaborators_response.status_code == 403:
+                raise PermissionError("Access to the repository is forbidden.")
+            else:
+                raise Exception(
+                    f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}")
+                
+        except requests.exceptions.Timeout as e:
+            raise TimeoutError(
+                "The request to get invited collaborators timed out.") from e
+        except requests.exceptions.ConnectionError as e:
+            raise ConnectionError(
+                "Failed to establish a connection to the GitHub API.") from e
+        except requests.exceptions.RequestException as e:
+            raise Exception(
+                f"An error occurred while making the request: {e}") from e
+        except Exception as e:
+            raise Exception(
+                f"Failed to fetch invited collaborators: {invited_collaborators_response.json().get('message', 'Unknown error')}") from e
+    
+    def get_expired_invited_collaborators(self, ssh_url: str) -> set[str]:
+        """same as get_users_invited_repo but only returns expired invites"""
+        username, repo_name = self.extract_user_repo_from_ssh(ssh_url)
+
+        try:
+            invited_collaborators_response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/invitations',
+                headers=self.HEADERS,
+                timeout=10
+            )
+            if invited_collaborators_response.status_code == 200:
+                invited_collaborators = {invited_collaborators['invitee']['login'] if invited_collaborators["expired"] else None
+                                        for invited_collaborators in invited_collaborators_response.json()} - {None}
                 return invited_collaborators
             elif invited_collaborators_response.status_code == 404:
                 raise FileNotFoundError("The repository was not found.")
@@ -593,7 +630,7 @@ class Automation:
         for repo in repositories:
             ssh_url = self.get_repository_ssh_url(repo)
             try:
-                invited_collaborators = self.get_users_invited_repo(ssh_url)
+                invited_collaborators = self.get_expired_invited_collaborators(ssh_url)
                 print(f"Invited collaborators for {repo}: {invited_collaborators}")
                 for user in invited_collaborators:
                     remove_res = self.revoke_user_invitation(ssh_url, user)
@@ -661,15 +698,16 @@ def main():
 
 def test():
     automation = Automation(GITHUB_PAT, 'spark-tests')
-    print(automation.get_organization_repositories())
+    print(automation.GITHUB_PAT)
+    
     #inital_ssh_url = automation.get_repository_ssh_url('initial')
-    byte_ssh_url = automation.get_repository_ssh_url('byte')
-    invited_to_byte = automation.get_users_invited_repo(byte_ssh_url)
-    print("--")
-    print(invited_to_byte)
+    #byte_ssh_url = automation.get_repository_ssh_url('byte')
+    #invited_to_byte = automation.get_users_invited_repo(byte_ssh_url)
+    #print("--")
+    #print(invited_to_byte)
     #print(automation.remove_or_revoke_user(byte_ssh_url, ''))
-    invited = automation.reinvite_all_expired_users_to_repos()
-    print(invited)
+    #invited = automation.reinvite_all_expired_users_to_repos()
+    #print(invited)
     
 if __name__ == "__main__":
     test()

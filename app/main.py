@@ -1,10 +1,12 @@
 # =========================================== imports =============================================
 
 from typing import List, Tuple
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import pandas as pd
 import github_rest as gh
+import ingest as ig
 import os
 from dotenv import load_dotenv
 
@@ -91,6 +93,45 @@ async def add_user_to_repos(request: Request):
         return {"status": r}
     except Exception as e:
         return {"status": "failed", "error": str(e)}
+    
+    
+# route called upload that takes in a csv
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        dataframe = pd.read_csv(file.file)
+        await ig.ucsv(dataframe)
+        return {"message": "File uploaded and processed successfully", "filename": file.filename}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+# route called ingest
+@app.post("/ingest")
+async def ingest():
+    try:
+        r = await ig.ingest()
+        return {"status": r}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+# route called getinfo
+@app.get("/getinfo")
+async def getinfo():
+    try:
+        info = ig.information()
+        return {"info": info}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+    
+# route called getcsv
+@app.get("/getcsv")
+async def getcsv():
+    try:
+        csv = ig.tcsv()
+        return {"csv": csv}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
 
 # ======================================== run the app =========================================
     

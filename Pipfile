@@ -9,6 +9,9 @@ gitpython = "*"
 python-dotenv = "*"
 fastapi = "*"
 uvicorn = "*"
+psycopg2-binary = "*"
+python-multipart = "*"
+pandas = "*"
 
 [dev-packages]
 

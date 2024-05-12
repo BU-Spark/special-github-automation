@@ -3,6 +3,10 @@ import { useDropzone } from 'react-dropzone';
 import Box from '@mui/material/Box';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { useEffect, useState } from 'react';
+import { Button, Divider } from '@mui/material';
+import { _csv, _info } from './fxns/fxns';
+import General from './components/general/general';
+import Csv from './components/csv/csv';
 
 function App() {
 
@@ -11,77 +15,19 @@ function App() {
 	const [inforows, setInfoRows] = useState<any[]>([]);
 	const [csvrows, setCsvRows] = useState<any[]>([]);
 	useEffect(() => {
-		getinfo();
-		getcsv();
+		getfxn(_info, setInfoLoading, setInfoRows);
+		getfxn(_csv, setCsvLoading, setCsvRows);
 	}, []);
 
-
-	async function getinfo() {
-		setInfoLoading(true);
+	async function getfxn(fxn: any, loadfxn: any, setfxn: any) {
+		loadfxn(true);
 		try {
-			const response = await fetch('http://localhost:5000/getinfo');
-			const data = await response.json();
-			console.log(data);
-
-			const info = data['info'];
-			const rows = [];
-			for (const i in info) {
-				console.log(info[i]);
-				const row = {
-					id: i,
-					buid: info[i]['buid'],
-					name: info[i]['name'],
-					email: info[i]['email'],
-					github: info[i]['github'],
-					semester: info[i]['semester'],
-					project: info[i]['project_name'],
-					repo: info[i]['repo'],
-				};
-				rows.push(row);
-			}
-			setInfoRows(rows);
+			const rows = await fxn();
+			setfxn(rows);
 		} catch (error) {
 			console.error('Error fetching data:', error);
 		} finally {
-			setInfoLoading(false);
-		}
-	
-	}
-
-	async function getcsv() {
-		setCsvLoading(true);
-		try {
-			const response = await fetch('http://localhost:5000/getcsv');
-			const data = await response.json();
-			console.log(data);
-
-			const info = data['csv'];
-			const rows = [];
-			for (const i in info) {
-				console.log(info[i]);
-				const row = {
-					id: i,
-					semester: info[i]['semester'],
-					course: info[i]['course'],
-					project: info[i]['project'],
-					organization: info[i]['organization'],
-					team: info[i]['team'],
-					role: info[i]['role'],
-					fname: info[i]['fname'],
-					lname: info[i]['lname'],
-					name: info[i]['name'],
-					email: info[i]['email'],
-					buid: info[i]['buid'],
-					github: info[i]['github'],
-					process_status: info[i]['process_status'],
-				};
-				rows.push(row);
-			}
-			setCsvRows(rows);
-		} catch (error) {
-			console.error('Error fetching data:', error);
-		} finally {
-			setCsvLoading(false);
+			loadfxn(false);
 		}
 	}
 
@@ -89,7 +35,6 @@ function App() {
 		setCsvLoading(true);
 		const file = acceptedFiles[0];
 		if (file) {
-			/* uploadFile(file); */
 			console.log(file);
 			const formData = new FormData();
 			formData.append("file", file);
@@ -102,10 +47,7 @@ function App() {
 				const result = await response.json();
 				if (response.ok) {
 					console.log('File uploaded successfully:', result);
-					await getcsv();
-					await getinfo();
-
-					// call ingest api 
+					await getfxn(_csv, setCsvLoading, setCsvRows);
 
 					const ingestreponse = await fetch('http://localhost:5000/ingest', {
 						method: 'POST',
@@ -113,8 +55,7 @@ function App() {
 					const ingestresult = await ingestreponse.json();
 					if (ingestreponse.ok) {
 						console.log('Ingested successfully:', ingestresult);
-						await getcsv();
-						await getinfo();
+						await getfxn(_info, setInfoLoading, setInfoRows);
 					} else {
 						console.error('Failed to ingest:', ingestresult);
 						throw new Error(ingestresult.message);
@@ -131,144 +72,18 @@ function App() {
 	};
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
-	const infocolumns: GridColDef[] = [
-		{ field: 'id', headerName: 'ID', width: 90 },
-		{
-			field: 'buid',
-			headerName: 'buid',
-			editable: false,
-		},
-		{
-			field: 'name',
-			headerName: 'name',
-			editable: false,
-		},
-		{
-			field: 'email',
-			headerName: 'email',
-			editable: false,
-		},
-		{
-			field: 'github',
-			headerName: 'github',
-			editable: false,
-		},
-		{
-			field: 'semester',
-			headerName: 'semester',
-			editable: false,
-		},
-		{
-			field: 'project',
-			headerName: 'project',
-			editable: false,
-		},
-		{
-			field: 'repo',
-			headerName: 'repo',
-			editable: false,
-		},
-
-	];
-
-	const csvcolumns: GridColDef[] = [
-		{ field: 'id', headerName: 'ID', width: 90 },
-		{
-			field: 'semester',
-			headerName: 'semester',
-			editable: false,
-		},
-		{
-			field: 'course',
-			headerName: 'course',
-			editable: false,
-		},
-		{
-			field: 'project',
-			headerName: 'project',
-			editable: false,
-		},
-		{
-			field: 'organization',
-			headerName: 'organization',
-			editable: false,
-		},
-		{
-			field: 'team',
-			headerName: 'team',
-			editable: false,
-		},
-		{
-			field: 'role',
-			headerName: 'role',
-			editable: false,
-		},
-		{
-			field: 'fname',
-			headerName: 'fname',
-			editable: false,
-		},
-		{
-			field: 'lname',
-			headerName: 'lname',
-			editable: false,
-		},
-		{
-			field: 'name',
-			headerName: 'name',
-			editable: false,
-		},
-		{
-			field: 'email',
-			headerName: 'email',
-			editable: false,
-		},
-		{
-			field: 'buid',
-			headerName: 'buid',
-			editable: false,
-		},
-		{
-			field: 'github',
-			headerName: 'github',
-			editable: false,
-		},
-		{
-			field: 'process_status',
-			headerName: 'process_status',
-			editable: false,
-		},
-
-	];
-
 	return (
 		<>
+			<h1>SPARK! AUTOMATIONS</h1>
+			<Divider style={{ backgroundColor: '#007bff', height: 3, marginTop: 10, marginBottom: 10 }} />
+
 			<h2>Current User Projects Repos Details</h2>
 			<Box sx={{ height: 400, width: '100%', backgroundColor: "#242424"}}>
-				<DataGrid
-					rows={inforows}
-					columns={infocolumns}
-					initialState={{
-						pagination: {
-							paginationModel: {
-								pageSize: 5,
-							},
-						},
-					}}
-					pageSizeOptions={[5]}
-					checkboxSelection
-					disableRowSelectionOnClick
-					loading={infoloading}
-					style={
-						{
-							backgroundColor: '#fff',
-							color: 'black',
-						}
-					}
-				/>
+				<General infoloading={infoloading} inforows={inforows} />
 			</Box>
+
 			<h2>Ingest User Project Repos Details</h2>
-			<div {...getRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center' }}>
+			<div {...getRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center', cursor: 'pointer' }}>
 				<input {...getInputProps()} />
 				{
 					isDragActive ?
@@ -277,28 +92,28 @@ function App() {
 				}
 			</div>
 			<Box sx={{ height: 400, width: '100%', backgroundColor: "#242424", marginTop: 2}}>
-				<DataGrid
-					rows={csvrows}
-					columns={csvcolumns}
-					initialState={{
-						pagination: {
-							paginationModel: {
-								pageSize: 5,
-							},
-						},
-					}}
-					pageSizeOptions={[5]}
-					checkboxSelection
-					disableRowSelectionOnClick
-					loading={csvloading}
-					style={
-						{
-							backgroundColor: '#fff',
-							color: 'black',
-						}
-					}
-				/>
+				<Csv csvloading={csvloading} csvrows={csvrows} />
 			</Box>
+
+			<h2>fxn: set all projects to view only</h2>
+			<Button variant="contained" color="primary" onClick={async () => {
+				const response = await fetch('http://localhost:5000/purge', {
+					method: 'POST',
+				});
+				const result = await response.json();
+				if (response.ok) {
+					console.log('Set all projects to view only:', result);
+					await getfxn(_info, setInfoLoading, setInfoRows);
+					await getfxn(_csv, setCsvLoading, setCsvRows);
+				} else {
+					console.error('Failed to set all projects to view only:', result);
+					throw new Error(result.message);
+				}
+			}}
+				style={{
+					padding: 20,
+				}}
+			>Set All Projects to View Only</Button>
 		</>
 	)
 }

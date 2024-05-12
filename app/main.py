@@ -132,6 +132,13 @@ async def getcsv():
     except Exception as e:
         return {"status": "failed", "error": str(e)}
 
+app.post("/purge")
+async def purge():
+    try:
+        r = await automation.set_all_repos_users_read_only()
+        return {"status": r}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
 
 # ======================================== run the app =========================================
     

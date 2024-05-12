@@ -37,8 +37,8 @@ export default function General({ infoloading, inforows }: any) {
             editable: false,
         },
         {
-            field: 'repo',
-            headerName: 'repo',
+            field: 'github_url',
+            headerName: 'github url',
             editable: false,
         },
 

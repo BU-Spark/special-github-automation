@@ -66,8 +66,8 @@ export default function Csv({ csvloading, csvrows }: any) {
             editable: false,
         },
         {
-            field: 'process_status',
-            headerName: 'process_status',
+            field: 'status',
+            headerName: 'status',
             editable: false,
         },
 

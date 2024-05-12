@@ -15,7 +15,7 @@ export async function _info() {
             github: info[i]['github'],
             semester: info[i]['semester'],
             project: info[i]['project_name'],
-            repo: info[i]['repo'],
+            github_url: info[i]['github_url'],
         };
         rows.push(row);
     }
@@ -46,7 +46,7 @@ export async function _csv() {
             email: info[i]['email'],
             buid: info[i]['buid'],
             github: info[i]['github'],
-            process_status: info[i]['process_status'],
+            status: info[i]['status'],
         };
         rows.push(row);
     }

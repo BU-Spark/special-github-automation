@@ -5,42 +5,55 @@ import React, { useState } from "react";
 export default function General({ infoloading, inforows }: any) {
 
     const infocolumns: GridColDef[] = [
-        { field: 'id', headerName: 'ID', width: 90 },
-        {
-            field: 'buid',
-            headerName: 'buid',
-            editable: false,
-        },
-        {
-            field: 'name',
-            headerName: 'name',
-            editable: false,
-        },
-        {
-            field: 'email',
-            headerName: 'email',
-            editable: false,
-        },
-        {
-            field: 'github',
-            headerName: 'github',
-            editable: false,
-        },
-        {
-            field: 'semester',
-            headerName: 'semester',
-            editable: false,
-        },
+        { field: 'id', headerName: 'ID', flex: .25 },
         {
             field: 'project',
             headerName: 'project',
             editable: false,
+            flex: 1.5,
         },
         {
             field: 'github_url',
             headerName: 'github url',
             editable: false,
+            flex: 1.5,
         },
+        {
+            field: 'buid',
+            headerName: 'buid',
+            editable: false,
+            flex: .75,
+        },
+        {
+            field: 'name',
+            headerName: 'name',
+            editable: false,
+            flex: 1,
+        },
+        {
+            field: 'email',
+            headerName: 'email',
+            editable: false,
+            flex: 1,
+        },
+        {
+            field: 'github',
+            headerName: 'github',
+            editable: false,
+            flex: 1,
+        },
+        {
+            field: 'semester',
+            headerName: 'semester',
+            editable: false,
+            flex: .75,
+        },
+        {
+            field: 'status',
+            headerName: 'status',
+            editable: false,
+            flex: 1,
+        }
 
     ];
     return (
@@ -56,7 +69,7 @@ export default function General({ infoloading, inforows }: any) {
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}
+                    pageSizeOptions={[5]}   
                     disableRowSelectionOnClick
                     loading={infoloading}
                     style={

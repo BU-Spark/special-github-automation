@@ -1,12 +1,12 @@
 export async function _info() {
     const rows = [];
-    const response = await fetch('http://localhost:5000/getinfo');
+    const response = await fetch('http://localhost:5000/get_info');
     const data = await response.json();
-    console.log(data);
+    //console.log(data);
 
     const info = data['info'];
     for (const i in info) {
-        console.log(info[i]);
+        //console.log(info[i]);
         const row = {
             id: i,
             buid: info[i]['buid'],
@@ -16,6 +16,7 @@ export async function _info() {
             semester: info[i]['semester'],
             project: info[i]['project_name'],
             github_url: info[i]['github_url'],
+            status: info[i]['status'],
         };
         rows.push(row);
     }
@@ -24,14 +25,14 @@ export async function _info() {
 
 export async function _csv() {
     const rows = [];
-    const response = await fetch('http://localhost:5000/getcsv');
+    const response = await fetch('http://localhost:5000/get_csv');
     const data = await response.json();
-    console.log(data);
+    //console.log(data);
 
     const info = data['csv'];
     
     for (const i in info) {
-        console.log(info[i]);
+        //console.log(info[i]);
         const row = {
             id: i,
             semester: info[i]['semester'],
@@ -47,6 +48,27 @@ export async function _csv() {
             buid: info[i]['buid'],
             github: info[i]['github'],
             status: info[i]['status'],
+        };
+        rows.push(row);
+    }
+    return rows;
+}
+
+export async function _projects() {
+    console.log('getting projects');    
+    const rows = [];
+    const response = await fetch('http://localhost:5000/get_projects');
+    const data = await response.json();
+    console.log(data);
+
+    const info = data['projects'];
+    for (const i in info) {
+        console.log(info[i]);
+        const row = {
+            id: i,
+            name: info[i]['name'],
+            semester: info[i]['semester'],
+            github_url: info[i]['github_url'],
         };
         rows.push(row);
     }

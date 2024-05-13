@@ -1,6 +1,7 @@
 # import =====================================
 
 import os
+from typing import Literal
 import psycopg2
 import psycopg2.extras
 import pandas as pd
@@ -12,6 +13,10 @@ load_dotenv()
 POSTGRES_URL = os.getenv('POSTGRES_URL')
 
 # ============================================
+
+status = Literal['started', 'pull', 'push', 'invited']
+
+#
 
 def connect(): return psycopg2.connect(POSTGRES_URL)
 
@@ -129,6 +134,7 @@ def information():
         
         for user_project in user_projects:
             project_id = user_project[0]
+            status = user_project[2]
             print("- USER_PROJECT:", user_project)
             
             cursor.execute(f"SELECT * FROM project WHERE project_id = {project_id}")
@@ -150,7 +156,8 @@ def information():
                 "github": user[4],
                 "project_name": project_name,
                 "github_url": github_url if github_url else "???",
-                "semester": semester[1]
+                "semester": semester[1],
+                "status": status
             })
     
     cursor.close()
@@ -159,8 +166,36 @@ def information():
     print(result)
     return result    
 
-def tcsv():
-    # get the csv table data and return it a serialized format
+def projects():
+    """Returns a list of dictionaries containing the data from the 'project' table."""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM project")
+    rows = cursor.fetchall()
+
+    result = []
+    for row in rows:
+        
+        # get the semester name from the semester id 
+        cursor.execute(f"SELECT * FROM semester WHERE semester_id = {row[2]}")
+        semester = cursor.fetchone()
+        
+        result.append({
+            "id": row[0],
+            "name": row[1],
+            "semester": semester[1],
+            "github_url": row[3]
+        })
+    
+    cursor.close()
+    conn.close()
+    print("=====================================")
+    print(result)
+    return result
+
+def gcsv():
+    """Returns a list of dictionaries containing the data from the 'csv' table."""
     conn = connect()
     cursor = conn.cursor()
     
@@ -236,11 +271,78 @@ def ucsv(dataframe):
         cursor.close()
         conn.close()
 
+def get_users_in_project(project):
+    """Returns a list of dictionaries containing the users from a specified project."""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    cursor.execute(f"SELECT * FROM project WHERE project_name = '{project}'")
+    project = cursor.fetchone()
+    
+    if not project: return []
+    
+    project_id = project[0]
+    
+    cursor.execute(f"SELECT * FROM user_project WHERE project_id = {project_id}")
+    user_projects = cursor.fetchall()
+    
+    result = []
+    for user_project in user_projects:
+        user_id = user_project[1]
+        
+        cursor.execute(f"SELECT * FROM \"user\" WHERE user_id = {user_id}")
+        user = cursor.fetchone()
+        
+        result.append({
+            "buid": user[1],
+            "name": user[2],
+            "email": user[3],
+            "github": user[4],
+            "status": user_project[2]
+        })
+    
+    cursor.close()
+    conn.close()
+    print("=====================================")
+    print(result)
+    return result
+
+def change_users_project_status(project: str, user_github: str, status: status) -> tuple[int, str]:
+    """Changes the status of a user in a project."""
+
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+
+        cursor.execute(f"SELECT * FROM project WHERE project_name = '{project}'")
+        project = cursor.fetchone()
+
+        if not project: return 404, f"Project {project} not found"
+
+        project_id = project[0]
+
+        cursor.execute(f"SELECT * FROM \"user\" WHERE github = '{user_github}'")
+        user = cursor.fetchone()
+
+        if not user: return 404, f"User {user_github} not found"
+
+        user_id = user[0]
+
+        cursor.execute(f"UPDATE user_project SET status = '{status}' WHERE project_id = {project_id} AND user_id = {user_id}")
+        conn.commit()
+
+        return 200, f"Successfully changed {user_github}'s status to {status}"
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        conn.rollback()
+        return 500, str(e)
+
 # ========================================
 
 if __name__ == "__main__":
     #for table in ['user', 'project', 'semester', 'user_project', 'csv']:
     #    dump(table)
     #ingest()
-
-    information()
+    #projects()
+    #information()
+    get_users_in_project('Byte')

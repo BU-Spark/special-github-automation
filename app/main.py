@@ -88,83 +88,103 @@ async def add_user_to_repos(request: Request):
 
 # ===================================== client functionality ======================================
 
-# route called upload that takes in a csv
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    try:
-        dataframe = pd.read_csv(file.file)
-        r = db.ucsv(dataframe)
-        return {"status": r}
+    try: return {"status": db.ucsv(pd.read_csv(file.file))}
     except Exception as e: return {"status": "failed", "error": str(e)}
 
-# route called ingest
 @app.post("/ingest")
 async def ingest():
-    try:
-        r = db.ingest()
-        return {"status": r}
+    try: return {"status": db.ingest()}
     except Exception as e: return {"status": "failed", "error": str(e)}
 
-# route called getinfo
+@app.post("/process")
+async def process():
+    try: return {"status": ""}
+    except Exception as e: return {"status": "failed", "error": str(e)}
+
+@app.post("clear")
+async def clear():
+    try: return {"status": db.clear()}
+    except Exception as e: return {"status": "failed", "error": str(e)}
+
 @app.get("/get_info")
 async def get_info():
-    try:
-        info = db.information()
-        return {"info": info}
+    try: return {"info": db.information()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
-# route called getcsv
 @app.get("/get_csv")
 async def get_csv():
-    try:
-        csv = db.gcsv()
-        return {"csv": csv}
+    try: return {"csv": db.gcsv()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
-# route called get projects
 @app.get("/get_projects")
 async def get_projects():
-    try:
-        projects = db.projects()
-        return {"projects": projects}
+    try: return {"projects": db.projects()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
-# route called set_projects
+@app.get("/git/get_all_repos")
+async def get_all_repos():
+    try: return {"repos": github.get_all_repos()}
+    except Exception as e: return {"status": "failed", "error": str(e)}
+    
 @app.post("/set_projects")
 async def set_projects(request: Request):
     data = await request.json()
+    
+    results: list = []
     projects: list[tuple[str, str]] = data["projects"]
     action: str = data["action"]
     
     if action not in ['push', 'pull']: return {"status": "failed", "error": "action must be 'push' or 'pull'"}
     
-    r = []
     try:
         for project in projects:
             try:
-                #print(project)
                 project_name = project[0]
                 repo_url = project[1]
-                
                 users = db.get_users_in_project(project_name)
-                #print(users)
                 for user in users:
-                    #print(user)
                     github_username = user["github"]
                     gh_status, gh_msg = github.change_user_permission_on_repo(repo_url, github_username, action)
                     if gh_status != 200 and gh_status != 204:
-                        r.append(f"FAILED: {project_name} - {github_username} -> {gh_status} {gh_msg}")
+                        results.append(f"FAILED: {project_name} - {github_username} -> {gh_status} {gh_msg}")
                         continue
                     else:
                         db_status, db_msg = db.change_users_project_status(project_name, github_username, action)
-                        r.append(f"PROCESSED: {project_name} - {github_username} -> gh {gh_status} {gh_msg} | db {db_status} {db_msg}")
+                        results.append(f"PROCESSED: {project_name} - {github_username} -> gh {gh_status} {gh_msg} | db {db_status} {db_msg}")
                     
             except Exception as e: 
                 print(e)
-                r.append(f"failed to modify {project_name}")
+                results.append(f"failed to modify {project_name}")
                 continue
-            
-        return {"results": r}
+        return {"results": results}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/git/set_projects")
+async def set_projects(request: Request):
+    data = await request.json()
+    
+    results: list = []
+    projects: list[tuple[str, str]] = data["projects"]
+    action: str = data["action"]
+    
+    if action not in ['push', 'pull']: return {"status": "failed", "error": "action must be 'push' or 'pull'"}
+    
+    try:
+        for project in projects:
+            try:
+                project_name = project[0]
+                repo_url = project[1]
+                response = github.change_all_user_permission_on_repo(repo_url, action)
+                for res in response:
+                    results.append(f"{project_name} -> {res}")
+                    
+            except Exception as e: 
+                print(e)
+                results.append(f"failed to modify {project_name}")
+                continue
+        return {"results": results}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 # ======================================== run the app =========================================

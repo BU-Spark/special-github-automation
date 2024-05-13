@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import React from "react";
 
@@ -86,29 +86,36 @@ export default function Csv({ csvloading, csvrows }: any) {
         },
 
     ];
-    
+
     return (
-        <Box sx={{ height: 400, width: '100%', backgroundColor: "#242424", marginTop: 2 }}>
-            <DataGrid
-                rows={csvrows}
-                columns={csvcolumns}
-                initialState={{
-                    pagination: {
-                        paginationModel: {
-                            pageSize: 5,
+        <>
+            <Box sx={{ height: 400, width: '100%', backgroundColor: "#242424", marginTop: 2, marginBottom: 2 }}>
+                <DataGrid
+                    rows={csvrows}
+                    columns={csvcolumns}
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 5,
+                            },
                         },
-                    },
-                }}
-                pageSizeOptions={[5]}
-                disableRowSelectionOnClick
-                loading={csvloading}
-                style={
-                    {
-                        backgroundColor: '#fff',
-                        color: 'black',
+                    }}
+                    pageSizeOptions={[5]}
+                    disableRowSelectionOnClick
+                    loading={csvloading}
+                    style={
+                        {
+                            backgroundColor: '#fff',
+                            color: 'black',
+                        }
                     }
-                }
-            />
-        </Box>
+                />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button variant='contained' color='primary'>
+                    process ingested data into github (add students to repos)
+                </Button>
+            </Box>
+        </>
     )
 }

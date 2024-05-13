@@ -2,9 +2,12 @@ import { Box, Button, CircularProgress } from "@mui/material";
 import { DataGrid, GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import React, { useState } from "react";
 
-export default function Projects({ projectsloading, projectsrows, callback }: any) {
+export default function Repos({ reposloading, reposrows, callback }: any) {
 
-    const projectcolumns: GridColDef[] = [
+    console.log('Repos:', reposrows);
+    console.log('Repos loading:', reposloading);
+
+    const reposcolumns: GridColDef[] = [
         { field: 'id', headerName: 'ID', flex: .25 },
         {
             field: 'name',
@@ -17,43 +20,38 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
             headerName: 'github url',
             editable: false,
             flex: 1,
-        },
-        {
-            field: 'semester',
-            headerName: 'semester',
-            editable: false,
-            flex: 1,
-        },
+        }
     ];
 
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
-    const [selectedProjectsUrls, setSelectedProjectsUrls] = useState<string[][]>([]);
+    const [selectedReposUrls, setSelectedReposUrls] = useState<string[][]>([]);
     async function selectionchange(selection: GridRowSelectionModel) {
-        const selectedprojects = selection.map((selected) => [projectsrows[selected as number].name, projectsrows[selected as number].github_url]);
-        console.log('Selected projects:', selectedprojects);
-        setSelectedProjectsUrls(selectedprojects);
+        const selectedrepos = selection.map((selected) => [reposrows[selected as number].name, reposrows[selected as number].github_url]);
+        console.log('Selected repos:', selectedrepos);
+        setSelectedReposUrls(selectedrepos);
     }
+
     async function setProjectsTo(action: "push" | "pull") {
 
-        if (selectedProjectsUrls.length === 0) {
+        if (selectedReposUrls.length === 0) {
             setResults(['No projects selected']);
             return;
         }
 
         setLoading(true);
         console.log('Setting projects to', action);
-        console.log('Selected projects:', selectedProjectsUrls);
+        console.log('Selected projects:', selectedReposUrls);
 
         try {
-            const response = await fetch('http://localhost:5000/set_projects', {
+            const response = await fetch('http://localhost:5000/git/set_projects', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     action: action,
-                    projects: selectedProjectsUrls
+                    projects: selectedReposUrls
                 })
             });
             const result = await response.json();
@@ -69,7 +67,7 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
             ]);
         } finally {
             setLoading(false);
-            callback();
+            /* callback(); */
         }
     }
 
@@ -77,8 +75,8 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
         <>
             <Box sx={{ height: 400, width: '100%', backgroundColor: "#242424", marginBottom: 2 }}>
                 <DataGrid
-                    rows={projectsrows}
-                    columns={projectcolumns}
+                    rows={reposrows}
+                    columns={reposcolumns}
                     initialState={{
                         pagination: {
                             paginationModel: {
@@ -90,7 +88,7 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
                     disableRowSelectionOnClick
                     checkboxSelection
                     onRowSelectionModelChange={selectionchange}
-                    loading={projectsloading}
+                    loading={reposloading}
                     style={
                         {
                             backgroundColor: '#fff',
@@ -107,10 +105,10 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
                 :
                 <Box sx={{ display: 'flex', gap: 2 }}>
                     <Button variant='contained' color='primary' onClick={() => setProjectsTo('pull')}>
-                        Set selected projects to (pull)
+                        Set selected repos to (pull)
                     </Button>
                     <Button variant='contained' color='primary' onClick={() => setProjectsTo('push')}>
-                        Set selected projects to (push)
+                        Set selected repos to (push)
                     </Button>
                 </Box>
             }
@@ -124,11 +122,11 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 5,
+                                pageSize: 10,
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}
+                    pageSizeOptions={[10]}
                     disableRowSelectionOnClick
                     style={{
                             minHeight: 140,

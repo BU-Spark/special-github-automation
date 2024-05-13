@@ -74,3 +74,21 @@ export async function _projects() {
     }
     return rows;
 }
+
+export async function _git_repos() {
+    const rows = [];
+    const response = await fetch('http://localhost:5000/git/get_all_repos');
+    const data = await response.json();
+    console.log(data);
+
+    const info = data['repos'];
+    for (const i in info) {
+        const row = {
+            id: i,
+            name: info[i][0],
+            github_url: info[i][1]
+        };
+        rows.push(row);
+    }
+    return rows;
+}

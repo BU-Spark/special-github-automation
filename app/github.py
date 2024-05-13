@@ -90,6 +90,37 @@ class Github:
         else:
             raise Exception(f"Failed to fetch collaborators: {collaborators_response.json().get('message', 'Unknown error')}")
     
+    def get_users_invited_on_repo(self, repo_url: str) -> set[str]:
+        """
+        Retrieves a set of GitHub usernames who are invited to collaborate on a given repository.
+
+        Args: repo_url (str): The URL of the GitHub repository.
+        Returns: set[str]: A set of GitHub usernames who are invited to collaborate on the repository.
+        Raises: Exception: If an error occurs during the API request or while processing the response.
+        """
+        
+        ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
+        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        
+        try:
+            invitations_response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/invitations',
+                headers=self.HEADERS,
+                timeout=10
+            )
+        except Exception as e:
+            raise Exception(f"Failed to fetch invitations: {str(e)}")
+        
+        if invitations_response.status_code == 200:
+            return {invitation['invitee']['login'] for invitation in invitations_response.json()}
+        elif invitations_response.status_code == 404:
+            raise Exception("The repository was not found.")
+        elif invitations_response.status_code == 403:
+            raise Exception("Access to the repository is forbidden.")
+        else:
+            raise Exception(f"Failed to fetch invitations: {invitations_response.json().get('message', 'Unknown error')}")
+        
+    
     def change_user_permission_on_repo(self, repo_url: str, user: str, permission: perms) -> tuple[int, str]:
         """
         Changes the permission level of a user on a GitHub repository.
@@ -112,7 +143,9 @@ class Github:
             collaborator_response = requests.get(
                 f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
                 headers=self.HEADERS
-            )            
+            )
+            
+            print(f"collaborator_response: {collaborator_response.status_code} for {user} on {repo_name}")
             
             if collaborator_response.status_code == 204:
                 # Change the user's permission level
@@ -167,17 +200,39 @@ class Github:
         results = []
         try:
             ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
-            username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
             users = self.get_users_on_repo(repo_url)
+            invited_users = self.get_users_invited_on_repo(repo_url)
             
-            for user in users:
-                status, msg = self.change_user_permission_on_repo(repo_url, user, permission)
+            for user in users.union(invited_users):
+                status, msg = self.change_user_permission_on_repo(ssh_url, user, permission)
                 results.append((status, msg))
             return results
         except Exception as e:
             return [(500, str(e))]
 
+    def get_all_repos(self) -> list[str]:
+        """
+        Retrieves a list of all repositories in the organization.
+        
+        Returns: list[str]: A list of all repositories in the organization.
+        """
+        
+        try:
+            response = requests.get(
+                f'https://api.github.com/orgs/{self.ORG_NAME}/repos',
+                headers=self.HEADERS,
+                timeout=10
+            )
+            #print(response.json())
+            if response.status_code == 200:
+                return [(repo['name'], repo['ssh_url']) for repo in response.json()]
+            else:
+                return []
+        except Exception as e:
+            return []
+
 if __name__ == "__main__":
-    github = Github(GITHUB_PAT, "ORG_NAME")
+    github = Github(GITHUB_PAT, "spark-tests")
     #print(github.change_user_permission_on_repo("https://github.com/spark-tests/initial", "mochiakku", "push"))
-    print(github.change_all_user_permission_on_repo("https://github.com/spark-tests/initial", "push"))
+    #print(github.change_all_user_permission_on_repo("https://github.com/spark-tests/initial", "push"))
+    print(github.get_all_repos())

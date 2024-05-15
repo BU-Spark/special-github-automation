@@ -63,7 +63,7 @@ def ingest():
         try:
             print("---")
             print("ROW:", row[:-1])
-            csvid, semester, course, project, organization, team, role, fname, lname, name, email, buid, github, process_status = row
+            csvid, semester, course, project, organization, team, role, fname, lname, name, email, buid, github, process_status, project_github_url = row
         
             # try to find the user in the user table, if not found, insert it
             user_id = None
@@ -89,9 +89,15 @@ def ingest():
                 cursor.execute(f"SELECT * FROM semester WHERE semester_name = '{semester}'")
                 semester_id = cursor.fetchone()[0]
                 
+                # try to get the github url from the project_github_url, if not found, set it to null
+                github_url = project_github_url if project_github_url else None
+                
                 # insert the project into the project table with the schema (project_name, semester_id, github_url, created_at) with the github url being null
                 print("- INSERTING PROJECT", project, semester_id)
-                cursor.execute(f"INSERT INTO project (project_name, semester_id) VALUES ('{project}', {semester_id}) RETURNING project_id")
+                if github_url:
+                    cursor.execute(f"INSERT INTO project (project_name, semester_id, github_url) VALUES ('{project}', {semester_id}, '{github_url}') RETURNING project_id")
+                else:
+                    cursor.execute(f"INSERT INTO project (project_name, semester_id) VALUES ('{project}', {semester_id}) RETURNING project_id")
                 project_id = cursor.fetchone()[0]
             else:
                 print("- PROJECT FOUND:", fetchproject)
@@ -295,7 +301,8 @@ def gcsv():
             "email": row[10],
             "buid": row[11],
             "github": row[12],
-            "status": row[13]
+            "status": row[13],
+            "project_github_url": row[14]
         })
     
     cursor.close()
@@ -321,11 +328,15 @@ def ucsv(dataframe):
         'Email': 'email',
         'BUID': 'buid',
         'Github Username': 'github_username',
+        'Project Github Url': 'project_github_url',
     }
     dataframe.rename(columns=colmap, inplace=True)
     
     if 'status' not in dataframe.columns:
         dataframe['status'] = 'unprocessed' 
+        
+    # Convert NaNs to None
+    dataframe = dataframe.where(pd.notna(dataframe), None)
 
     # Constructing the SQL INSERT statement dynamically based on DataFrame columns
     columns = ', '.join(dataframe.columns)
@@ -419,8 +430,8 @@ def change_users_project_status(project: str, user_github: str, status: status) 
 if __name__ == "__main__":
     #for table in ['user', 'project', 'semester', 'user_project', 'csv']:
     #    dump(table)
-    #ingest()
+        ingest()
     #projects()
     #information()
     #get_users_in_project('Byte')
-    print(process())
+    #print(process())

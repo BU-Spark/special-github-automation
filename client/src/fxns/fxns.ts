@@ -48,6 +48,7 @@ export async function _csv() {
             buid: info[i]['buid'],
             github: info[i]['github'],
             status: info[i]['status'],
+            project_github_url: info[i]['project_github_url'],
         };
         rows.push(row);
     }

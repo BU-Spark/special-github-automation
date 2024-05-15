@@ -10,7 +10,7 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
             field: 'semester',
             headerName: 'semester',
             editable: false,
-            flex: 1,
+            flex: .9,
         },
         {
             field: 'course',
@@ -75,6 +75,11 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
         {
             field: 'github',
             headerName: 'github',
+            flex: 1,
+        },
+        {
+            field: 'project_github_url',
+            headerName: 'project github url',
             editable: false,
             flex: 1,
         },
@@ -82,6 +87,7 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
             field: 'status',
             headerName: 'status',
             editable: false,
+            minWidth: 400,
             flex: 1,
         },
     ];

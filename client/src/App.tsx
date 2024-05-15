@@ -144,11 +144,11 @@ function App() {
 							<p>Drag and drop a CSV file here, or click to select a file</p>
 					}
 				</div>
-				<Csv csvloading={csvloading} csvrows={csvrows} />
+				<Csv csvloading={csvloading} csvrows={csvrows} callback={refresh} />
 
 				<Divider style={{ backgroundColor: '#fff', height: 1, marginTop: 20, marginBottom: 20 }} />
 
-				<h2>fxn: set selected projects to view only</h2>
+				<h2>fxn: set selected projects to perm</h2>
 				<Projects projectsloading={projectsloading} projectsrows={projectsrows} callback={refresh} />
 
 
@@ -160,7 +160,7 @@ function App() {
 				</>
 			</TabPanel>
 			<TabPanel value={value} index={2}>
-				RETOOL
+				<iframe src="https://testgithub.retool.com/apps/automation%20dashboard" width="100%" height="800px"></iframe>
 			</TabPanel>
 		</>
 	)

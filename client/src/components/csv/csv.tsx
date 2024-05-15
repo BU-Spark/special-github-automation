@@ -1,8 +1,8 @@
 import { Box, Button } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import React from "react";
+import React, { useState } from "react";
 
-export default function Csv({ csvloading, csvrows }: any) {
+export default function Csv({ csvloading, csvrows, callback }: any) {
 
     const csvcolumns: GridColDef[] = [
         { field: 'id', headerName: 'ID', flex: .25 },
@@ -84,8 +84,36 @@ export default function Csv({ csvloading, csvrows }: any) {
             editable: false,
             flex: 1,
         },
-
     ];
+
+    const [loading, setLoading] = useState(false);
+    const [results, setResults] = useState<any[]>([]);
+    async function process() {
+        setLoading(true);
+        console.log('Processing ingested data into github');
+        try {
+            const response = await fetch('http://localhost:5000/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            });
+            const result = await response.json();
+            console.log('Result:', result);
+            if (response.ok) {
+                let logs = result['status'];
+                console.log('Processed successfully:', logs);
+                setResults(logs);
+                callback();
+            } else throw new Error('Error processing data');
+        } catch (error: any) {
+            console.error('Error processing data:', error);
+            setResults([
+                'Error processing data ' + error.toString()
+            ]);
+        }
+        setLoading(false);
+    }
 
     return (
         <>
@@ -112,9 +140,33 @@ export default function Csv({ csvloading, csvrows }: any) {
                 />
             </Box>
             <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button variant='contained' color='primary'>
+                <Button variant='contained' color='primary' onClick={process}>
                     process ingested data into github (add students to repos)
                 </Button>
+            </Box>
+            <Box sx={{ width: '100%', backgroundColor: "#242424", marginTop: 2 }}>
+                <DataGrid
+                    rows={results.map((result, index) => ({ id: index, result }))}
+                    columns={[
+                        { field: 'id', headerName: 'ID', flex: .25 },
+                        { field: 'result', headerName: 'Result', flex: 1 }
+                    ]}
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 5,
+                            },
+                        },
+                    }}
+                    pageSizeOptions={[5]}
+                    disableRowSelectionOnClick
+                    loading={loading}
+                    style={{
+                            minHeight: 140,
+                            backgroundColor: '#fff',
+                            color: 'black',
+                        }}
+                />
             </Box>
         </>
     )

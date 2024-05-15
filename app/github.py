@@ -60,6 +60,61 @@ class Github:
         if response.status_code == 200: return True
         else: return False
     
+    def check_user_is_collaborator(self, repo_url: str, user: str) -> bool:
+        """
+        Checks if a GitHub user is a collaborator on a given repository.
+
+        Args: 
+            repo_url (str): The URL of the GitHub repository.
+            user (str): The username of the GitHub user.
+        Returns: bool: True if the user is a collaborator, False otherwise.
+        """
+        
+        ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
+        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        
+        try:
+            response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
+                headers=self.HEADERS,
+                timeout=2
+            )
+            
+            if response.status_code == 204: return True
+            else: return False
+        except Exception as e:
+            raise Exception(f"Failed to check if user is a collaborator: {str(e)}")
+    
+    def add_user_to_repo(self, repo_url: str, user: str, permission: perms) -> tuple[int, str]:
+        """
+        Adds a GitHub user to a repository with the specified permission level.
+
+        Args: 
+            repo_url (str): The URL of the GitHub repository.
+            user (str): The username of the GitHub user.
+            permission ("pull" | "triage" | "push" | "maintain" | "admin"): The permission level for the user.
+        Returns: Tuple[int, str]: A tuple containing the status code and message.
+        """
+        
+        ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
+        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        exists = self.check_user_exists(user)
+        
+        if not exists: return 404, f"User {user} does not exist"
+        
+        try:
+            response = requests.put(
+                f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
+                headers=self.HEADERS,
+                json={'permission': permission},
+                timeout=2
+            )
+            
+            if response.status_code == 201: return 201, f"Successfully added {user} to the repository with {permission} permission"
+            else: return response.status_code, response.json()
+        except Exception as e:
+            return 500, str(e)
+    
     def get_users_on_repo(self, repo_url: str) -> set[str]:
         """
         Retrieves a set of GitHub usernames who are collaborators on a given repository.
@@ -120,7 +175,6 @@ class Github:
         else:
             raise Exception(f"Failed to fetch invitations: {invitations_response.json().get('message', 'Unknown error')}")
         
-    
     def change_user_permission_on_repo(self, repo_url: str, user: str, permission: perms) -> tuple[int, str]:
         """
         Changes the permission level of a user on a GitHub repository.

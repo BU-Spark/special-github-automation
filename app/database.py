@@ -5,18 +5,23 @@ from typing import Literal
 import psycopg2
 import psycopg2.extras
 import pandas as pd
+import github as git
 from dotenv import load_dotenv
 
-# env ========================================
+# =========================================== app setup ===========================================
 
+# env
 load_dotenv()
 POSTGRES_URL = os.getenv('POSTGRES_URL')
+GITHUB_PAT = os.getenv('GITHUB_PAT')
 
-# ============================================
+# app
+github = git.Github(GITHUB_PAT, 'spark-tests')
 
-status = Literal['started', 'pull', 'push', 'invited']
+# const
+status = Literal['started', 'pull', 'push']
 
-#
+# =========================================== database  ==========================================
 
 def connect(): return psycopg2.connect(POSTGRES_URL)
 
@@ -113,6 +118,78 @@ def ingest():
     cursor.close()
     conn.close()  # Also close the connection after processing
 
+def process():
+    """Processes data that was just ingested."""
+    
+    # go through the user_project table, and then invite the user to the project if they are not already invited or a collaborator,
+    # and then update the user_project table status to 'push' 
+    
+    result = []
+    
+    conn = connect()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM user_project WHERE status = 'started'")
+    user_projects = cursor.fetchall()
+    
+    if not user_projects: return ["No user_projects with 'started' status to process."]
+    
+    for user_project in user_projects:
+        try:
+            project_id = user_project[0]
+            user_id = user_project[1]
+            
+            cursor.execute(f"SELECT * FROM project WHERE project_id = {project_id}")
+            project = cursor.fetchone()
+            
+            cursor.execute(f"SELECT * FROM \"user\" WHERE user_id = {user_id}")
+            user = cursor.fetchone()
+            
+            project_name = project[1]
+            github_url = project[3]
+            github_username = user[4]
+            
+            # if the github url is not set, then skip this user
+            if not github_url:
+                result.append(f"SKIPPED ADDING {github_username} TO {project_name} - NO GITHUB URL")
+                continue
+                
+            # check if the user is already a collaborator, or has been invited to the project
+            if github.check_user_is_collaborator(github_url, github_username):
+                result.append(f"SKIPPED ADDING {github_username} TO {project_name} - ALREADY COLLABORATOR")
+                cursor.execute(f"UPDATE user_project SET status = 'push' WHERE project_id = {project_id} AND user_id = {user_id}")
+                conn.commit()
+                continue
+                
+            # check if the user is already invited to the project
+            if github_username in github.get_users_invited_on_repo(github_url):
+                result.append(f"SKIPPED ADDING {github_username} TO {project_name} - ALREADY INVITED")
+                cursor.execute(f"UPDATE user_project SET status = 'push' WHERE project_id = {project_id} AND user_id = {user_id}")
+                conn.commit()
+                continue
+            
+            # invite the user to the project
+            status, msg = github.add_user_to_repo(github_url, github_username, 'push')
+            if status != 201:
+                result.append(f"FAILED ADDING {github_username} TO {project_name} - {status} {msg}")
+                continue
+            else:
+                result.append(f"ADDED {github_username} TO {project_name} - {status} {msg}")
+                
+            # update the user_project table status to 'push'
+            cursor.execute(f"UPDATE user_project SET status = 'push' WHERE project_id = {project_id} AND user_id = {user_id}")
+            
+            conn.commit()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            conn.rollback()
+            result.append(f"ERROR ADDING {github_username} TO {project_name} - {e}")
+            
+    cursor.close()
+    conn.close()
+    
+    return result
+    
 def information():
     """Returns a list of dictionaries containing information about the users, projects, and semesters."""
     
@@ -345,4 +422,5 @@ if __name__ == "__main__":
     #ingest()
     #projects()
     #information()
-    get_users_in_project('Byte')
+    #get_users_in_project('Byte')
+    print(process())

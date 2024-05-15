@@ -100,12 +100,13 @@ async def ingest():
 
 @app.post("/process")
 async def process():
-    try: return {"status": ""}
+    try: 
+        return {"status": db.process()}
     except Exception as e: return {"status": "failed", "error": str(e)}
 
 @app.post("clear")
 async def clear():
-    try: return {"status": db.clear()}
+    try: return {"status": ""}
     except Exception as e: return {"status": "failed", "error": str(e)}
 
 @app.get("/get_info")
@@ -121,11 +122,6 @@ async def get_csv():
 @app.get("/get_projects")
 async def get_projects():
     try: return {"projects": db.projects()}
-    except Exception as e: return {"status": "failed", "error": str(e)}
-    
-@app.get("/git/get_all_repos")
-async def get_all_repos():
-    try: return {"repos": github.get_all_repos()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
 @app.post("/set_projects")
@@ -186,6 +182,11 @@ async def set_projects(request: Request):
                 continue
         return {"results": results}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/git/get_all_repos")
+async def get_all_repos():
+    try: return {"repos": github.get_all_repos()}
+    except Exception as e: return {"status": "failed", "error": str(e)}
 
 # ======================================== run the app =========================================
     

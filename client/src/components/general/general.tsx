@@ -1,6 +1,5 @@
 import { Box } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import React, { useState } from "react";
 
 export default function General({ infoloading, inforows }: any) {
 

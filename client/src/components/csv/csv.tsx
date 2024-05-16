@@ -108,7 +108,7 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
             const result = await response.json();
             console.log('Result:', result);
             if (response.ok) {
-                let logs = result['status'];
+                const logs = result['status'];
                 console.log('Processed successfully:', logs);
                 setResults(logs);
                 callback();

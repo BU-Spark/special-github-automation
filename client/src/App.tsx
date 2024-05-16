@@ -1,9 +1,8 @@
 import './App.css'
 import { useDropzone } from 'react-dropzone';
 import Box from '@mui/material/Box';
-import { DataGrid, GridColDef, GridRowSelectionModel } from '@mui/x-data-grid';
 import { useEffect, useState } from 'react';
-import { Button, Divider } from '@mui/material';
+import { Divider } from '@mui/material';
 import { _csv, _git_repos, _info, _projects } from './fxns/fxns';
 import General from './components/general/general';
 import Csv from './components/csv/csv';
@@ -40,6 +39,7 @@ function App() {
 
 	const [value, setValue] = useState(0);
 	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+		console.log(event);
 		setValue(newValue);
 	};
 
@@ -114,7 +114,7 @@ function App() {
 				console.error('Error uploading file:', error);
 			}
 		}
-	};
+	}
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
@@ -157,7 +157,7 @@ function App() {
 			<TabPanel value={value} index={1}>
 				<>
 				<h2>CRUD: ALL REPOS</h2>
-				<Repos reposloading={reposloading} reposrows={reposrows} callback={refresh} />
+				<Repos reposloading={reposloading} reposrows={reposrows} />
 				</>
 			</TabPanel>
 			<TabPanel value={value} index={2}>

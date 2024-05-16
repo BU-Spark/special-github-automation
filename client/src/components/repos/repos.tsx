@@ -1,9 +1,9 @@
 import { Box, Button, CircularProgress } from "@mui/material";
 import { DataGrid, GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
-import React, { useState } from "react";
+import { useState } from "react";
 import { API_URL } from "../../utils/uri";
 
-export default function Repos({ reposloading, reposrows, callback }: any) {
+export default function Repos({ reposloading, reposrows }: any) {
 
     console.log('Repos:', reposrows);
     console.log('Repos loading:', reposloading);

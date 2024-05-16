@@ -1,6 +1,8 @@
+import { API_URL } from "../utils/uri";
+
 export async function _info() {
     const rows = [];
-    const response = await fetch('http://localhost:5000/get_info');
+    const response = await fetch(`${API_URL}/get_info`);
     const data = await response.json();
     //console.log(data);
 
@@ -25,7 +27,7 @@ export async function _info() {
 
 export async function _csv() {
     const rows = [];
-    const response = await fetch('http://localhost:5000/get_csv');
+    const response = await fetch(`${API_URL}/get_csv`);
     const data = await response.json();
     //console.log(data);
 
@@ -58,7 +60,7 @@ export async function _csv() {
 export async function _projects() {
     console.log('getting projects');    
     const rows = [];
-    const response = await fetch('http://localhost:5000/get_projects');
+    const response = await fetch(`${API_URL}/get_projects`);
     const data = await response.json();
     console.log(data);
 
@@ -78,7 +80,7 @@ export async function _projects() {
 
 export async function _git_repos() {
     const rows = [];
-    const response = await fetch('http://localhost:5000/git/get_all_repos');
+    const response = await fetch(`${API_URL}/git/get_all_repos`);
     const data = await response.json();
     console.log(data);
 

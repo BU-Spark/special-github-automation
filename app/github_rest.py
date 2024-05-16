@@ -652,6 +652,25 @@ class Automation:
                 result.append((repo, -1, str(e)))
         return result
 
+    def set_all_repos_users_read_only(self):
+        """
+        Sets all users in all repositories to read-only access.
+
+        Returns:
+            list[tuple[str, int, str]]: A list of tuples, each containing the repository name, HTTP status code, and a message indicating the success or failure of the operation.
+        """
+        repositories = self.get_organization_repositories()
+        result = []
+        for repo in repositories:
+            ssh_url = self.get_repository_ssh_url(repo)
+            try:
+                collaborators = self.get_users_on_repo(ssh_url)
+                for user in collaborators:
+                    res = self.change_user_permission(ssh_url, user, 'pull')
+                    result.append((repo, res[0], res[1]))
+            except Exception as e:
+                result.append((repo, -1, str(e)))
+        return result
 # =========================================== runs =============================================
 
 def sheet():
@@ -712,21 +731,23 @@ def test():
     automation = Automation(GITHUB_PAT, 'spark-tests')
     print(automation.GITHUB_PAT)
     
-    inital_ssh_url = automation.get_repository_ssh_url('initial')
+    #inital_ssh_url = automation.get_repository_ssh_url('initial')
     #byte_ssh_url = automation.get_repository_ssh_url('byte')
     #invited_to_byte = automation.get_users_invited_repo(byte_ssh_url)
     
     #set_byte_users = automation.set_repo_users(byte_ssh_url, {'s-alad'})
     #print(set_byte_users)
-    print(inital_ssh_url)
-    set_initial_users = automation.set_repo_users(inital_ssh_url, {'s-alad', 'mochiakku'})
-    print(set_initial_users)
+    #print(inital_ssh_url)
+    #set_initial_users = automation.set_repo_users(inital_ssh_url, {'s-alad', 'mochiakku'})
+    #print(set_initial_users)
     
-    print("--")
+    #print("--")
     #print(invited_to_byte)
     #print(automation.remove_or_revoke_user(byte_ssh_url, ''))
     #invited = automation.reinvite_all_expired_users_to_repos()
     #print(invited)
+    
+    automation.set_all_repos_users_read_only()
     
 if __name__ == "__main__":
     test()

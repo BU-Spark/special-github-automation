@@ -1,95 +1,83 @@
 import './App.css'
 import { useDropzone } from 'react-dropzone';
 import Box from '@mui/material/Box';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridRowSelectionModel } from '@mui/x-data-grid';
 import { useEffect, useState } from 'react';
+import { Button, Divider } from '@mui/material';
+import { _csv, _git_repos, _info, _projects } from './fxns/fxns';
+import General from './components/general/general';
+import Csv from './components/csv/csv';
+import Projects from './components/projects/projects';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Repos from './components/repos/repos';
+
+interface TabPanelProps {
+	children?: React.ReactNode;
+	index: number;
+	value: number;
+}
+function TabStyle(index: number) { return { id: `simple-tab-${index}`, 'aria-controls': `simple-tabpanel-${index}`, 'style': { color: '#fff' } }; }
+function TabPanel(props: TabPanelProps) {
+	const { children, value, index, ...other } = props;
+
+	return (
+		<div
+			role="tabpanel"
+			hidden={value !== index}
+			id={`simple-tabpanel-${index}`}
+			aria-labelledby={`simple-tab-${index}`}
+			{...other}
+		>
+			{value === index && (<Box>{children}</Box>)}
+		</div>
+	);
+}
+
 
 function App() {
 
+	const [value, setValue] = useState(0);
+	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+		setValue(newValue);
+	};
+
 	const [infoloading, setInfoLoading] = useState(false);
 	const [csvloading, setCsvLoading] = useState(false);
+	const [projectsloading, setProjectsLoading] = useState(false);
+	const [reposloading, setReposLoading] = useState(false);
 	const [inforows, setInfoRows] = useState<any[]>([]);
 	const [csvrows, setCsvRows] = useState<any[]>([]);
+	const [projectsrows, setProjectsRows] = useState<any[]>([]);
+	const [reposrows, setReposRows] = useState<any[]>([]);
 	useEffect(() => {
-		getinfo();
-		getcsv();
+		getfxn(_info, setInfoLoading, setInfoRows);
+		getfxn(_csv, setCsvLoading, setCsvRows);
+		getfxn(_projects, setProjectsLoading, setProjectsRows);
+		getfxn(_git_repos, setReposLoading, setReposRows);
 	}, []);
 
-
-	async function getinfo() {
-		setInfoLoading(true);
-		try {
-			const response = await fetch('http://localhost:5000/getinfo');
-			const data = await response.json();
-			console.log(data);
-
-			const info = data['info'];
-			const rows = [];
-			for (const i in info) {
-				console.log(info[i]);
-				const row = {
-					id: i,
-					buid: info[i]['buid'],
-					name: info[i]['name'],
-					email: info[i]['email'],
-					github: info[i]['github'],
-					semester: info[i]['semester'],
-					project: info[i]['project_name'],
-					repo: info[i]['repo'],
-				};
-				rows.push(row);
-			}
-			setInfoRows(rows);
-		} catch (error) {
-			console.error('Error fetching data:', error);
-		} finally {
-			setInfoLoading(false);
-		}
-	
+	async function refresh() {
+		await getfxn(_info, setInfoLoading, setInfoRows);
+		await getfxn(_csv, setCsvLoading, setCsvRows);
+		await getfxn(_projects, setProjectsLoading, setProjectsRows);
+		await getfxn(_git_repos, setReposLoading, setReposRows);
 	}
 
-	async function getcsv() {
-		setCsvLoading(true);
-		try {
-			const response = await fetch('http://localhost:5000/getcsv');
-			const data = await response.json();
-			console.log(data);
 
-			const info = data['csv'];
-			const rows = [];
-			for (const i in info) {
-				console.log(info[i]);
-				const row = {
-					id: i,
-					semester: info[i]['semester'],
-					course: info[i]['course'],
-					project: info[i]['project'],
-					organization: info[i]['organization'],
-					team: info[i]['team'],
-					role: info[i]['role'],
-					fname: info[i]['fname'],
-					lname: info[i]['lname'],
-					name: info[i]['name'],
-					email: info[i]['email'],
-					buid: info[i]['buid'],
-					github: info[i]['github'],
-					process_status: info[i]['process_status'],
-				};
-				rows.push(row);
-			}
-			setCsvRows(rows);
-		} catch (error) {
-			console.error('Error fetching data:', error);
-		} finally {
-			setCsvLoading(false);
+	async function getfxn(fxn: any, loadfxn: any, setfxn: any) {
+		loadfxn(true);
+		try {
+			const rows = await fxn();
+			setfxn(rows);
 		}
+		catch (error) { console.error('Error fetching data:', error); }
+		finally { loadfxn(false); }
 	}
 
 	async function onDrop(acceptedFiles: File[]) {
-		setCsvLoading(true);
 		const file = acceptedFiles[0];
 		if (file) {
-			/* uploadFile(file); */
 			console.log(file);
 			const formData = new FormData();
 			formData.append("file", file);
@@ -102,10 +90,7 @@ function App() {
 				const result = await response.json();
 				if (response.ok) {
 					console.log('File uploaded successfully:', result);
-					await getcsv();
-					await getinfo();
-
-					// call ingest api 
+					await getfxn(_csv, setCsvLoading, setCsvRows);
 
 					const ingestreponse = await fetch('http://localhost:5000/ingest', {
 						method: 'POST',
@@ -113,8 +98,9 @@ function App() {
 					const ingestresult = await ingestreponse.json();
 					if (ingestreponse.ok) {
 						console.log('Ingested successfully:', ingestresult);
-						await getcsv();
-						await getinfo();
+						await getfxn(_info, setInfoLoading, setInfoRows);
+						await getfxn(_csv, setCsvLoading, setCsvRows);
+						await getfxn(_projects, setProjectsLoading, setProjectsRows);
 					} else {
 						console.error('Failed to ingest:', ingestresult);
 						throw new Error(ingestresult.message);
@@ -127,178 +113,55 @@ function App() {
 				console.error('Error uploading file:', error);
 			}
 		}
-		setCsvLoading(false);
 	};
+
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
-
-	const infocolumns: GridColDef[] = [
-		{ field: 'id', headerName: 'ID', width: 90 },
-		{
-			field: 'buid',
-			headerName: 'buid',
-			editable: false,
-		},
-		{
-			field: 'name',
-			headerName: 'name',
-			editable: false,
-		},
-		{
-			field: 'email',
-			headerName: 'email',
-			editable: false,
-		},
-		{
-			field: 'github',
-			headerName: 'github',
-			editable: false,
-		},
-		{
-			field: 'semester',
-			headerName: 'semester',
-			editable: false,
-		},
-		{
-			field: 'project',
-			headerName: 'project',
-			editable: false,
-		},
-		{
-			field: 'repo',
-			headerName: 'repo',
-			editable: false,
-		},
-
-	];
-
-	const csvcolumns: GridColDef[] = [
-		{ field: 'id', headerName: 'ID', width: 90 },
-		{
-			field: 'semester',
-			headerName: 'semester',
-			editable: false,
-		},
-		{
-			field: 'course',
-			headerName: 'course',
-			editable: false,
-		},
-		{
-			field: 'project',
-			headerName: 'project',
-			editable: false,
-		},
-		{
-			field: 'organization',
-			headerName: 'organization',
-			editable: false,
-		},
-		{
-			field: 'team',
-			headerName: 'team',
-			editable: false,
-		},
-		{
-			field: 'role',
-			headerName: 'role',
-			editable: false,
-		},
-		{
-			field: 'fname',
-			headerName: 'fname',
-			editable: false,
-		},
-		{
-			field: 'lname',
-			headerName: 'lname',
-			editable: false,
-		},
-		{
-			field: 'name',
-			headerName: 'name',
-			editable: false,
-		},
-		{
-			field: 'email',
-			headerName: 'email',
-			editable: false,
-		},
-		{
-			field: 'buid',
-			headerName: 'buid',
-			editable: false,
-		},
-		{
-			field: 'github',
-			headerName: 'github',
-			editable: false,
-		},
-		{
-			field: 'process_status',
-			headerName: 'process_status',
-			editable: false,
-		},
-
-	];
 
 	return (
 		<>
-			<h2>Current User Projects Repos Details</h2>
-			<Box sx={{ height: 400, width: '100%', backgroundColor: "#242424"}}>
-				<DataGrid
-					rows={inforows}
-					columns={infocolumns}
-					initialState={{
-						pagination: {
-							paginationModel: {
-								pageSize: 5,
-							},
-						},
-					}}
-					pageSizeOptions={[5]}
-					checkboxSelection
-					disableRowSelectionOnClick
-					loading={infoloading}
-					style={
-						{
-							backgroundColor: '#fff',
-							color: 'black',
-						}
-					}
-				/>
+			<h1>SPARK! AUTOMATIONS</h1>
+			<Box sx={{ width: '100%' }}>
+				<Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
+					<Tab label="Actions" 		{...TabStyle(0)} />
+					<Tab label="Github CRUD" 	{...TabStyle(1)} />
+					<Tab label="Retool" 		{...TabStyle(2)} />
+				</Tabs>
 			</Box>
-			<h2>Ingest User Project Repos Details</h2>
-			<div {...getRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center' }}>
-				<input {...getInputProps()} />
-				{
-					isDragActive ?
-						<p>Drop the file here ...</p> :
-						<p>Drag and drop a CSV file here, or click to select a file</p>
-				}
-			</div>
-			<Box sx={{ height: 400, width: '100%', backgroundColor: "#242424", marginTop: 2}}>
-				<DataGrid
-					rows={csvrows}
-					columns={csvcolumns}
-					initialState={{
-						pagination: {
-							paginationModel: {
-								pageSize: 5,
-							},
-						},
-					}}
-					pageSizeOptions={[5]}
-					checkboxSelection
-					disableRowSelectionOnClick
-					loading={csvloading}
-					style={
-						{
-							backgroundColor: '#fff',
-							color: 'black',
-						}
+			<Divider style={{ backgroundColor: '#fff', height: 3, marginTop: 20, marginBottom: 20 }} />
+
+			<TabPanel value={value} index={0}>
+				<h2>Current User Projects Repos Details</h2>
+				<General infoloading={infoloading} inforows={inforows} />
+
+				<Divider style={{ backgroundColor: '#fff', height: 1, marginTop: 20, marginBottom: 20 }} />
+
+				<h2>Ingest User Project Repos Details</h2>
+				<div {...getRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center', cursor: 'pointer' }}>
+					<input {...getInputProps()} />
+					{
+						isDragActive ?
+							<p>Drop the file here ...</p> :
+							<p>Drag and drop a CSV file here, or click to select a file</p>
 					}
-				/>
-			</Box>
+				</div>
+				<Csv csvloading={csvloading} csvrows={csvrows} callback={refresh} />
+
+				<Divider style={{ backgroundColor: '#fff', height: 1, marginTop: 20, marginBottom: 20 }} />
+
+				<h2>fxn: set selected projects to perm</h2>
+				<Projects projectsloading={projectsloading} projectsrows={projectsrows} callback={refresh} />
+
+
+			</TabPanel>
+			<TabPanel value={value} index={1}>
+				<>
+				<h2>CRUD: ALL REPOS</h2>
+				<Repos reposloading={reposloading} reposrows={reposrows} callback={refresh} />
+				</>
+			</TabPanel>
+			<TabPanel value={value} index={2}>
+				<iframe src="https://testgithub.retool.com/apps/automation%20dashboard" width="100%" height="800px"></iframe>
+			</TabPanel>
 		</>
 	)
 }

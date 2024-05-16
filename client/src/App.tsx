@@ -11,6 +11,7 @@ import Projects from './components/projects/projects';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Repos from './components/repos/repos';
+import { API_URL } from './utils/uri';
 
 interface TabPanelProps {
 	children?: React.ReactNode;
@@ -83,7 +84,7 @@ function App() {
 			formData.append("file", file);
 
 			try {
-				const response = await fetch('http://localhost:5000/upload', {
+				const response = await fetch(`${API_URL}/upload`, {
 					method: 'POST',
 					body: formData,
 				});
@@ -92,7 +93,7 @@ function App() {
 					console.log('File uploaded successfully:', result);
 					await getfxn(_csv, setCsvLoading, setCsvRows);
 
-					const ingestreponse = await fetch('http://localhost:5000/ingest', {
+					const ingestreponse = await fetch(`${API_URL}/ingest`, {
 						method: 'POST',
 					});
 					const ingestresult = await ingestreponse.json();

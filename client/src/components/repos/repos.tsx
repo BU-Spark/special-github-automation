@@ -1,6 +1,7 @@
 import { Box, Button, CircularProgress } from "@mui/material";
 import { DataGrid, GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import React, { useState } from "react";
+import { API_URL } from "../../utils/uri";
 
 export default function Repos({ reposloading, reposrows, callback }: any) {
 
@@ -44,7 +45,7 @@ export default function Repos({ reposloading, reposrows, callback }: any) {
         console.log('Selected projects:', selectedReposUrls);
 
         try {
-            const response = await fetch('http://localhost:5000/git/set_projects', {
+            const response = await fetch(`${API_URL}/git/set_projects`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

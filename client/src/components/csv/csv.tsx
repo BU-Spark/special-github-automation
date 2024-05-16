@@ -1,6 +1,7 @@
 import { Box, Button } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import React, { useState } from "react";
+import { API_URL } from "../../utils/uri";
 
 export default function Csv({ csvloading, csvrows, callback }: any) {
 
@@ -98,7 +99,7 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
         setLoading(true);
         console.log('Processing ingested data into github');
         try {
-            const response = await fetch('http://localhost:5000/process', {
+            const response = await fetch(`${API_URL}/process`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

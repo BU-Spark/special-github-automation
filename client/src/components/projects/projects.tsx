@@ -1,6 +1,6 @@
 import { Box, Button, CircularProgress } from "@mui/material";
 import { DataGrid, GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
-import React, { useState } from "react";
+import { useState } from "react";
 import { API_URL } from "../../utils/uri";
 
 export default function Projects({ projectsloading, projectsrows, callback }: any) {

@@ -1,6 +1,6 @@
 import { Box, Button } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import React, { useState } from "react";
+import { useState } from "react";
 import { API_URL } from "../../utils/uri";
 
 export default function Csv({ csvloading, csvrows, callback }: any) {

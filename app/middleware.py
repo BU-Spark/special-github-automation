@@ -18,8 +18,8 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         try:
-            
-            if request.url.path in self.allowed:
+            # Allow OPTIONS requests to proceed without authentication
+            if request.method == "OPTIONS" or request.url.path in self.allowed:
                 return await call_next(request)
             
             authorization: str = request.headers.get("Authorization")

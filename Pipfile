@@ -12,6 +12,7 @@ uvicorn = "*"
 psycopg2-binary = "*"
 python-multipart = "*"
 pandas = "*"
+aiocache = {extras = ["redis", "memcached"], version = "*"}
 
 [dev-packages]
 

@@ -9,7 +9,11 @@ import github as git
 import database as db
 import middleware as middleware
 import os
+import aiocache
 from dotenv import load_dotenv
+from aiocache import Cache
+from aiocache.serializers import JsonSerializer
+from aiocache.decorators import cached
 
 # =========================================== app setup ===========================================
 
@@ -21,24 +25,42 @@ GITHUB_PAT = os.getenv('GITHUB_PAT')
 app = FastAPI()
 automation = gh.Automation(GITHUB_PAT, 'spark-tests')
 github = git.Github(GITHUB_PAT, 'spark-tests')
+aiocache.caches.set_config({
+    'default': {
+        'cache': 'aiocache.SimpleMemoryCache',
+        'serializer': {'class': 'aiocache.serializers.JsonSerializer'},
+    },
+})
 
 # cors
 app.add_middleware(CORSMiddleware,
     allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 app.add_middleware(middleware.BasicAuthMiddleware, 
-    allowed=["/"]
+    allowed=["/", "/refresh"]
 )
 
 # ========================================= functionality =========================================
+
+async def deletecache():
+    await aiocache.delete("info")
+    await aiocache.delete("csv")
+    await aiocache.delete("projects")
 
 # root route
 @app.get("/")
 async def root(): return {"/": "/"}
 
-# route to check authentication status (middleware)
+# route to check authentication status (uses middleware)
 @app.post("/authenticate")
 async def authenticate(): return {"status": "authenticated"}
+
+# route to refresh the cache
+@app.post("/refresh")
+async def refresh(): 
+    cache = aiocache.caches.get('default') 
+    await cache.clear()
+    return {"status": "cache cleared"}
 
 # ============================================ routing  ===========================================
 
@@ -98,38 +120,45 @@ async def add_user_to_repos(request: Request):
 
 # ===================================== client functionality ======================================
 
-@app.post("/upload")
+@app.post("/upload/csv")
 async def upload_file(file: UploadFile = File(...)):
-    try: return {"status": db.ucsv(pd.read_csv(file.file))}
+    try: deletecache() ; return {"status": db.ucsv(pd.read_csv(file.file))}
+    except Exception as e: return {"status": "failed", "error": str(e)}
+    
+@app.post("/upload/projects")
+async def upload_projects(file: UploadFile = File(...)):
+    try: deletecache() ; return {"status": db.uprojects(pd.read_csv(file.file))}
     except Exception as e: return {"status": "failed", "error": str(e)}
 
-@app.post("/ingest")
+@app.post("/ingest/csv")
 async def ingest():
-    try: return {"status": db.ingest()}
+    try: deletecache() ; return {"status": db.ingest()}
+    except Exception as e: return {"status": "failed", "error": str(e)}
+    
+@app.post("/ingest/projects")
+async def ingest_projects():
+    try: deletecache() ; return {"status": db.ingest_projects()}
     except Exception as e: return {"status": "failed", "error": str(e)}
 
 @app.post("/process")
 async def process():
-    try: 
-        return {"status": db.process()}
-    except Exception as e: return {"status": "failed", "error": str(e)}
-
-@app.post("clear")
-async def clear():
-    try: return {"status": ""}
+    try: deletecache() ; return {"status": db.process()}
     except Exception as e: return {"status": "failed", "error": str(e)}
 
 @app.get("/get_info")
+@cached(ttl=300, alias="default", key="info")
 async def get_info():
     try: return {"info": db.information()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
 @app.get("/get_csv")
+@cached(ttl=300, alias="default", key="csv")
 async def get_csv():
     try: return {"csv": db.gcsv()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
 @app.get("/get_projects")
+@cached(ttl=300, alias="default", key="projects")
 async def get_projects():
     try: return {"projects": db.projects()}
     except Exception as e: return {"status": "failed", "error": str(e)}
@@ -137,6 +166,7 @@ async def get_projects():
 @app.post("/set_projects")
 async def set_projects(request: Request):
     data = await request.json()
+    deletecache()
     
     results: list = []
     projects: list[tuple[str, str]] = data["projects"]

@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setAuthenticated(true);
         }
         setLoading(false);
-    });
+    }, []);
 
     async function authenticate() {
         if (!credentials.username || !credentials.password) {

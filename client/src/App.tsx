@@ -1,7 +1,7 @@
 import { useDropzone } from 'react-dropzone';
 import Box from '@mui/material/Box';
 import { useEffect, useState } from 'react';
-import { Divider } from '@mui/material';
+import { Button, Divider } from '@mui/material';
 import General from './components/general/general';
 import Csv from './components/csv/csv';
 import Projects from './components/projects/projects';
@@ -61,7 +61,22 @@ function App() {
 		getfxn(_git_repos, setReposLoading, setReposRows);
 	}, []);
 
+	async function clearcache() {
+		try {
+			const response = await fetch(`${API_URL}/refresh`, {
+				method: 'POST',
+			});
+			if (response.ok) {
+				console.log('Cache cleared successfully');
+				await refresh();
+			}
+		} catch (error) {
+			console.error('Error clearing cache:', error);
+		}
+	}
+
 	async function refresh() {
+		console.log('Refreshing data');
 		await getfxn(_info, setInfoLoading, setInfoRows);
 		await getfxn(_csv, setCsvLoading, setCsvRows);
 		await getfxn(_projects, setProjectsLoading, setProjectsRows);
@@ -87,7 +102,7 @@ function App() {
 			formData.append("file", file);
 
 			try {
-				const response = await fetch(`${API_URL}/upload`, {
+				const response = await fetch(`${API_URL}/upload/csv`, {
 					headers: {
 						'Authorization': 'Basic ' + btoa(credentials.username + ":" + credentials.password),
 					},
@@ -99,7 +114,7 @@ function App() {
 					console.log('File uploaded successfully:', result);
 					await getfxn(_csv, setCsvLoading, setCsvRows);
 
-					const ingestreponse = await _fetch(`${API_URL}/ingest`, {
+					const ingestreponse = await _fetch(`${API_URL}/ingest/csv`, {
 						method: 'POST',
 					});
 					const ingestresult = await ingestreponse.json();
@@ -127,12 +142,20 @@ function App() {
 	return (
 		<>
 			<h1>SPARK! AUTOMATIONS</h1>
-			<Box sx={{ width: '100%' }}>
+			<Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 				<Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
 					<Tab label="Actions" 		{...TabStyle(0)} />
 					<Tab label="Github CRUD" 	{...TabStyle(1)} />
 					<Tab label="Retool" 		{...TabStyle(2)} />
 				</Tabs>
+
+				<Button 
+					variant="outlined" 
+					color="info" 
+					onClick={() => clearcache()} 
+				>
+					refresh cache 🔄
+				</Button>
 			</Box>
 			<Divider style={{ backgroundColor: '#fff', height: 3, marginTop: 20, marginBottom: 20 }} />
 

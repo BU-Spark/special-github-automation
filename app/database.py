@@ -124,6 +124,20 @@ def ingest():
     cursor.close()
     conn.close()  # Also close the connection after processing
 
+def ingest_projects():
+    """Ingests data from the 'csv_projects' table to the 'project' and 'semester' tables."""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM csv_projects")
+    rows = cursor.fetchall()
+    
+    for row in rows:
+        try:
+            print(row)
+        except psycopg2.Error as e:
+            print(f"An error occurred: {e}")
+
 def process():
     """Processes data that was just ingested."""
     
@@ -310,38 +324,20 @@ def gcsv():
     
     return result
 
-def ucsv(dataframe):
-    """Inserts data from a pandas DataFrame to the 'csv' PostgreSQL table."""
+def upload(dataframe, table_name, colmap):
+    """Inserts data from a pandas DataFrame to a specified PostgreSQL table."""
     conn = connect()
     cursor = conn.cursor()
     
-    colmap = {
-        'Semester': 'semester',
-        'Course': 'course',
-        'Project': 'project',
-        'Organization': 'organization',
-        'Team': 'team',
-        'Role': 'role',
-        'First Name': 'first_name',
-        'Last Name': 'last_name',
-        'Full Name': 'full_name',
-        'Email': 'email',
-        'BUID': 'buid',
-        'Github Username': 'github_username',
-        'Project Github Url': 'project_github_url',
-    }
     dataframe.rename(columns=colmap, inplace=True)
     
-    if 'status' not in dataframe.columns:
-        dataframe['status'] = 'unprocessed' 
-        
     # Convert NaNs to None
     dataframe = dataframe.where(pd.notna(dataframe), None)
-
+    
     # Constructing the SQL INSERT statement dynamically based on DataFrame columns
     columns = ', '.join(dataframe.columns)
     values_placeholder = ', '.join(['%s'] * len(dataframe.columns))
-    insert_query = f"INSERT INTO csv ({columns}) VALUES ({values_placeholder})"
+    insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({values_placeholder})"
     
     print(insert_query)
 
@@ -358,6 +354,40 @@ def ucsv(dataframe):
     finally:
         cursor.close()
         conn.close()
+    
+
+def ucsv(dataframe):
+    """Inserts data from a pandas DataFrame to the 'csv' PostgreSQL table."""
+    
+    colmap = {
+        'Semester': 'semester',
+        'Course': 'course',
+        'Project': 'project',
+        'Organization': 'organization',
+        'Team': 'team',
+        'Role': 'role',
+        'First Name': 'first_name',
+        'Last Name': 'last_name',
+        'Full Name': 'full_name',
+        'Email': 'email',
+        'BUID': 'buid',
+        'Github Username': 'github_username',
+        'Project Github Url': 'project_github_url',
+    }
+    
+    upload(dataframe, 'csv', colmap)
+    
+
+def uprojects(dataframe):
+    """Inserts data from a pandas DataFrame to the 'csv_projects' PostgreSQL table."""
+    
+    colmap = {
+        'Semester': 'semester',
+        'Project': 'project',
+        'Github URL': 'github_url',
+    }
+
+    upload(dataframe, 'csv_projects', colmap)
 
 def get_users_in_project(project):
     """Returns a list of dictionaries containing the users from a specified project."""

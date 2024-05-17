@@ -1,6 +1,6 @@
 import { Box, Button, CircularProgress } from "@mui/material";
 import { DataGrid, GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
-import React, { useState } from "react";
+import { useState } from "react";
 import { API_URL } from "../../utils/uri";
 
 export default function Projects({ projectsloading, projectsrows, callback }: any) {
@@ -27,6 +27,7 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
         },
     ];
 
+    const [locked, setLocked] = useState(true);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
     const [selectedProjectsUrls, setSelectedProjectsUrls] = useState<string[][]>([]);
@@ -107,10 +108,15 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
                 </Box>
                 :
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button variant='contained' color='primary' onClick={() => setProjectsTo('pull')}>
+                    <Button onClick={()=>setLocked(!locked)}>{locked ? '🔒' : '🔓'}</Button>
+                    <Button variant='contained' color={locked ? 'error' : 'primary'} onClick={() => {
+                        if (locked) { setResults(['Unlock to set projects']);} else {setProjectsTo('pull');}
+                    }}>
                         Set selected projects to (pull)
                     </Button>
-                    <Button variant='contained' color='primary' onClick={() => setProjectsTo('push')}>
+                    <Button variant='contained' color={locked ? 'error' : 'primary'} onClick={() => {
+                        if (locked) { setResults(['Unlock to set projects']);} else { setProjectsTo('push');}
+                    }}>
                         Set selected projects to (push)
                     </Button>
                 </Box>

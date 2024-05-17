@@ -132,11 +132,13 @@ function App() {
 
 			<TabPanel value={value} index={0}>
 				<h2>Current User Projects Repos Details</h2>
+				<h4>General information about students & projects</h4>
 				<General infoloading={infoloading} inforows={inforows} />
 
 				<Divider style={{ backgroundColor: '#fff', height: 1, marginTop: 20, marginBottom: 20 }} />
 
 				<h2>Ingest User Project Repos Details</h2>
+				<h4>Upload CSV file. (this will automatically make any projects or users as needed)</h4>
 				<div {...getRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center', cursor: 'pointer' }}>
 					<input {...getInputProps()} />
 					{
@@ -149,7 +151,8 @@ function App() {
 
 				<Divider style={{ backgroundColor: '#fff', height: 1, marginTop: 20, marginBottom: 20 }} />
 
-				<h2>fxn: set selected projects to perm</h2>
+				<h2>Set selected projects to Push/Pull</h2>
+				<h4>Select the projects you want to change to view / write</h4>
 				<Projects projectsloading={projectsloading} projectsrows={projectsrows} callback={refresh} />
 
 

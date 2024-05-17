@@ -24,6 +24,7 @@ export default function Repos({ reposloading, reposrows }: any) {
         }
     ];
 
+    const [locked, setLocked] = useState(true);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
     const [selectedReposUrls, setSelectedReposUrls] = useState<string[][]>([]);
@@ -105,11 +106,16 @@ export default function Repos({ reposloading, reposrows }: any) {
                 </Box>
                 :
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button variant='contained' color='primary' onClick={() => setProjectsTo('pull')}>
-                        Set selected repos to (pull)
+                    <Button onClick={()=>setLocked(!locked)}>{locked ? '🔒' : '🔓'}</Button>
+                    <Button variant='contained' color={locked ? 'error' : 'primary'} onClick={() => {
+                        if (locked) { setResults(['Unlock to set projects']);} else {setProjectsTo('pull');}
+                    }}>
+                        Set selected projects to (pull)
                     </Button>
-                    <Button variant='contained' color='primary' onClick={() => setProjectsTo('push')}>
-                        Set selected repos to (push)
+                    <Button variant='contained' color={locked ? 'error' : 'primary'} onClick={() => {
+                        if (locked) { setResults(['Unlock to set projects']);} else { setProjectsTo('push');}
+                    }}>
+                        Set selected projects to (push)
                     </Button>
                 </Box>
             }

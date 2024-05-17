@@ -2,8 +2,11 @@ import { Box, Button, CircularProgress } from "@mui/material";
 import { DataGrid, GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import { useState } from "react";
 import { API_URL } from "../../utils/uri";
+import { useAuth } from "../../context/auth";
 
 export default function Projects({ projectsloading, projectsrows, callback }: any) {
+
+    const { _fetch } = useAuth();
 
     const projectcolumns: GridColDef[] = [
         { field: 'id', headerName: 'ID', flex: .25 },
@@ -48,11 +51,8 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
         console.log('Selected projects:', selectedProjectsUrls);
 
         try {
-            const response = await fetch(`${API_URL}/set_projects`, {
+            const response = await _fetch(`${API_URL}/set_projects`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
                     action: action,
                     projects: selectedProjectsUrls

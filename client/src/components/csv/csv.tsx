@@ -2,8 +2,11 @@ import { Box, Button } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useState } from "react";
 import { API_URL } from "../../utils/uri";
+import { useAuth } from "../../context/auth";
 
 export default function Csv({ csvloading, csvrows, callback }: any) {
+
+    const { _fetch } = useAuth();
 
     const csvcolumns: GridColDef[] = [
         { field: 'id', headerName: 'ID', flex: .25 },
@@ -100,11 +103,8 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
         setLoading(true);
         console.log('Processing ingested data into github');
         try {
-            const response = await fetch(`${API_URL}/process`, {
+            const response = await _fetch(`${API_URL}/process`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
             });
             const result = await response.json();
             console.log('Result:', result);

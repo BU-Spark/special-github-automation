@@ -2,11 +2,14 @@ import { Box, Button, CircularProgress } from "@mui/material";
 import { DataGrid, GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import { useState } from "react";
 import { API_URL } from "../../utils/uri";
+import { useAuth } from "../../context/auth";
 
 export default function Repos({ reposloading, reposrows }: any) {
 
     console.log('Repos:', reposrows);
     console.log('Repos loading:', reposloading);
+
+    const { _fetch } = useAuth();
 
     const reposcolumns: GridColDef[] = [
         { field: 'id', headerName: 'ID', flex: .25 },
@@ -46,11 +49,8 @@ export default function Repos({ reposloading, reposrows }: any) {
         console.log('Selected projects:', selectedReposUrls);
 
         try {
-            const response = await fetch(`${API_URL}/git/set_projects`, {
+            const response = await _fetch(`${API_URL}/git/set_projects`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
                     action: action,
                     projects: selectedReposUrls

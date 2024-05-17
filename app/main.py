@@ -7,6 +7,7 @@ import pandas as pd
 import github_rest as gh
 import github as git
 import database as db
+import middleware as middleware
 import os
 from dotenv import load_dotenv
 
@@ -25,13 +26,22 @@ github = git.Github(GITHUB_PAT, 'spark-tests')
 app.add_middleware(CORSMiddleware,
     allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
+app.add_middleware(middleware.BasicAuthMiddleware, 
+    allowed=["/"]
+)
 
-# ============================================ routing  ===========================================
+# ========================================= functionality =========================================
 
 # root route
 @app.get("/")
 async def root(): return {"/": "/"}
-    
+
+# route to check authentication status (middleware)
+@app.post("/authenticate")
+async def authenticate(): return {"status": "authenticated"}
+
+# ============================================ routing  ===========================================
+
 # route called set_repo_users that takes in a repo https url, and a list of usernames
 @app.post("/set_repo_users")
 async def set_repo_users(request: Request):

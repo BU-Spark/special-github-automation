@@ -1,9 +1,7 @@
-import './App.css'
 import { useDropzone } from 'react-dropzone';
 import Box from '@mui/material/Box';
 import { useEffect, useState } from 'react';
 import { Divider } from '@mui/material';
-import { _csv, _git_repos, _info, _projects } from './fxns/fxns';
 import General from './components/general/general';
 import Csv from './components/csv/csv';
 import Projects from './components/projects/projects';
@@ -11,6 +9,8 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Repos from './components/repos/repos';
 import { API_URL } from './utils/uri';
+import { useAuth } from './context/auth';
+import { useFxns } from './context/fxns';
 
 interface TabPanelProps {
 	children?: React.ReactNode;
@@ -36,6 +36,9 @@ function TabPanel(props: TabPanelProps) {
 
 
 function App() {
+
+	const { _fetch, credentials } = useAuth();
+	const { _csv, _git_repos, _info, _projects } = useFxns();
 
 	const [value, setValue] = useState(0);
 	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -85,6 +88,9 @@ function App() {
 
 			try {
 				const response = await fetch(`${API_URL}/upload`, {
+					headers: {
+						'Authorization': 'Basic ' + btoa(credentials.username + ":" + credentials.password),
+					},
 					method: 'POST',
 					body: formData,
 				});
@@ -93,7 +99,7 @@ function App() {
 					console.log('File uploaded successfully:', result);
 					await getfxn(_csv, setCsvLoading, setCsvRows);
 
-					const ingestreponse = await fetch(`${API_URL}/ingest`, {
+					const ingestreponse = await _fetch(`${API_URL}/ingest`, {
 						method: 'POST',
 					});
 					const ingestresult = await ingestreponse.json();

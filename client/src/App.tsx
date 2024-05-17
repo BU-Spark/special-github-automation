@@ -97,6 +97,7 @@ function App() {
 	async function onDrop(acceptedFiles: File[]) {
 		const file = acceptedFiles[0];
 		if (file) {
+			setCsvLoading(true);
 			console.log(file);
 			const formData = new FormData();
 			formData.append("file", file);
@@ -112,7 +113,9 @@ function App() {
 				const result = await response.json();
 				if (response.ok) {
 					console.log('File uploaded successfully:', result);
+					/* await refresh(); */
 					await getfxn(_csv, setCsvLoading, setCsvRows);
+					setCsvLoading(true);
 
 					const ingestreponse = await _fetch(`${API_URL}/ingest/csv`, {
 						method: 'POST',
@@ -120,6 +123,7 @@ function App() {
 					const ingestresult = await ingestreponse.json();
 					if (ingestreponse.ok) {
 						console.log('Ingested successfully:', ingestresult);
+						/* await refresh(); */
 						await getfxn(_info, setInfoLoading, setInfoRows);
 						await getfxn(_csv, setCsvLoading, setCsvRows);
 						await getfxn(_projects, setProjectsLoading, setProjectsRows);
@@ -133,6 +137,8 @@ function App() {
 				}
 			} catch (error) {
 				console.error('Error uploading file:', error);
+			} finally {
+				setCsvLoading(false);
 			}
 		}
 	}

@@ -259,8 +259,8 @@ def information():
     
     cursor.close()
     conn.close()
-    print("=====================================")
-    print(result)
+    #print("=====================================")
+    #print(result)
     return result    
 
 def projects():
@@ -287,8 +287,8 @@ def projects():
     
     cursor.close()
     conn.close()
-    print("=====================================")
-    print(result)
+    #print("=====================================")
+    #print(result)
     return result
 
 def gcsv():
@@ -421,8 +421,8 @@ def get_users_in_project(project):
     
     cursor.close()
     conn.close()
-    print("=====================================")
-    print(result)
+    #print("=====================================")
+    #print(result)
     return result
 
 def change_users_project_status(project: str, user_github: str, status: status) -> tuple[int, str]:

@@ -42,8 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        let result = _fetch(`${API_URL}/authenticate`, {
+        let result = fetch(`${API_URL}/authenticate`, {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + btoa(credentials.username + ":" + credentials.password),
+            },
         }).then(() => {
             setAuthenticated(true);
             // update local storage LOL insecure

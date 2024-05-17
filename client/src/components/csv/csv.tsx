@@ -93,6 +93,7 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
         },
     ];
 
+    const [locked, setLocked] = useState(true);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
     async function process() {
@@ -146,8 +147,14 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
                     }
                 />
             </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button variant='contained' color='primary' onClick={process}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Button onClick={()=>setLocked(!locked)}>{locked ? '🔒' : '🔓'}</Button>
+                <Button variant='contained' color={locked ? 'error' : 'primary'} onClick={
+                    () => {
+                        if (!locked) process();
+                        else setResults(['Unlock the table to process data (use the lock emoji)']);
+                    }
+                }>
                     process ingested data into github (add students to repos)
                 </Button>
             </Box>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { API_URL } from "../../utils/uri";
 import { useAuth } from "../../context/auth";
 
-export default function Csv({ csvloading, csvrows, callback }: any) {
+export default function Csv({ csvloading, csvrows, csvprojectsrows, callback }: any) {
 
     const { _fetch } = useAuth();
 
@@ -96,6 +96,35 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
         },
     ];
 
+    const csvprojectscolumns: GridColDef[] = [
+        { field: 'id', headerName: 'ID', flex: .25 },
+        {
+            field: 'semester',
+            headerName: 'semester',
+            editable: false,
+            flex: .9,
+        },
+        {
+            field: 'project',
+            headerName: 'project',
+            editable: false,
+            flex: 1,
+        },
+        {
+            field: 'project_github_url',
+            headerName: 'project github url',
+            editable: false,
+            flex: 1,
+        },
+        {
+            field: 'status',
+            headerName: 'status',
+            editable: false,
+            minWidth: 400,
+            flex: 1,
+        },
+    ];
+
     const [locked, setLocked] = useState(true);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
@@ -125,18 +154,44 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
 
     return (
         <>
-            <Box sx={{ height: 400, width: '100%', backgroundColor: "#242424", marginTop: 2, marginBottom: 2 }}>
+            <Box sx={{ width: '100%', backgroundColor: "#242424", marginTop: 2, marginBottom: 2 }}>
+                <h4>the CSV table</h4>  
                 <DataGrid
+                    rowHeight={28}
                     rows={csvrows}
                     columns={csvcolumns}
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 5,
+                                pageSize: 25,
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}
+                    pageSizeOptions={[25]}
+                    disableRowSelectionOnClick
+                    loading={csvloading}
+                    style={
+                        {
+                            backgroundColor: '#fff',
+                            color: 'black',
+                        }
+                    }
+                />
+            </Box>
+            <Box sx={{ width: '100%', backgroundColor: "#242424", marginTop: 2, marginBottom: 2 }}>
+                <h4>the CSV_PROJECTS table</h4>  
+                <DataGrid
+                    rowHeight={28}
+                    rows={csvprojectsrows}
+                    columns={csvprojectscolumns}
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 25,
+                            },
+                        },
+                    }}
+                    pageSizeOptions={[25]}
                     disableRowSelectionOnClick
                     loading={csvloading}
                     style={
@@ -159,7 +214,9 @@ export default function Csv({ csvloading, csvrows, callback }: any) {
                 </Button>
             </Box>
             <Box sx={{ width: '100%', backgroundColor: "#242424", marginTop: 2 }}>
+                <h4>Results</h4>
                 <DataGrid
+                    rowHeight={28}
                     rows={results.map((result, index) => ({ id: index, result }))}
                     columns={[
                         { field: 'id', headerName: 'ID', flex: .25 },

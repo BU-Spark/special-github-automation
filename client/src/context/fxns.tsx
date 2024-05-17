@@ -4,6 +4,7 @@ import { useAuth } from './auth';
 interface FxnContextType {
     _info: () => Promise<any>;
     _csv: () => Promise<any>;
+    _csv_projects: () => Promise<any>;
     _projects: () => Promise<any>;
     _git_repos: () => Promise<any>;
 }
@@ -11,6 +12,7 @@ interface FxnContextType {
 export const FxnContext = createContext<FxnContextType>({
     _info: async () => {},
     _csv: async () => {},
+    _csv_projects: async () => {},
     _projects: async () => {},
     _git_repos: async () => {},
 });
@@ -78,6 +80,27 @@ export function FxnProvider({ children }: { children: React.ReactNode }) {
         return rows;
     }
 
+    async function _csv_projects() {
+        const rows = [];
+        const response = await _fetch(`${API_URL}/get_csv_projects`, { method: 'GET' });
+        const data = await response.json();
+        console.log(data);
+
+        const info = data['csv_projects'];
+        for (const i in info) {
+            console.log(info[i]);
+            const row = {
+                id: i,
+                project: info[i]['project'],
+                semester: info[i]['semester'],
+                project_github_url: info[i]['project_github_url'],
+                status: info[i]['status'],
+            };
+            rows.push(row);
+        }
+        return rows;
+    }
+
     async function _projects() {
         console.log('getting projects');    
         const rows = [];
@@ -118,7 +141,7 @@ export function FxnProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <FxnContext.Provider value={{ _info, _csv, _projects, _git_repos }}>
+        <FxnContext.Provider value={{ _info, _csv, _csv_projects, _projects, _git_repos }}>
             {children}
         </FxnContext.Provider>
     );

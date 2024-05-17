@@ -84,15 +84,16 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 5,
+                                pageSize: 25,
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}
+                    pageSizeOptions={[25]}
                     disableRowSelectionOnClick
                     checkboxSelection
                     onRowSelectionModelChange={selectionchange}
                     loading={projectsloading}
+                    rowHeight={28}
                     style={
                         {
                             backgroundColor: '#fff',
@@ -122,6 +123,7 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
                 </Box>
             }
             <Box sx={{ width: '100%', backgroundColor: "#242424", marginTop: 2 }}>
+            <h4>Results</h4>
                 <DataGrid
                     rows={results.map((result, index) => ({ id: index, result }))}
                     columns={[
@@ -131,11 +133,12 @@ export default function Projects({ projectsloading, projectsrows, callback }: an
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 5,
+                                pageSize: 25,
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}
+                    rowHeight={28}
+                    pageSizeOptions={[25]}
                     disableRowSelectionOnClick
                     style={{
                             minHeight: 140,

@@ -11,154 +11,120 @@ import Repos from './components/repos/repos';
 import { API_URL } from './utils/uri';
 import { useAuth } from './context/auth';
 import { useFxns } from './context/fxns';
-
-interface TabPanelProps {
-	children?: React.ReactNode;
-	index: number;
-	value: number;
-}
-function TabStyle(index: number) { return { id: `simple-tab-${index}`, 'aria-controls': `simple-tabpanel-${index}`, 'style': { color: '#fff' } }; }
-function TabPanel(props: TabPanelProps) {
-	const { children, value, index, ...other } = props;
-
-	return (
-		<div
-			role="tabpanel"
-			hidden={value !== index}
-			id={`simple-tabpanel-${index}`}
-			aria-labelledby={`simple-tab-${index}`}
-			{...other}
-		>
-			{value === index && (<Box>{children}</Box>)}
-		</div>
-	);
-}
-
+import { TabPanel, TabStyle } from './components/tab/tab';
 
 function App() {
 
 	const { _fetch, credentials } = useAuth();
-	const { _csv, _git_repos, _info, _projects } = useFxns();
+	const { _csv, _csv_projects, _git_repos, _info, _projects } = useFxns();
 
 	const [value, setValue] = useState(0);
-	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-		console.log(event);
-		setValue(newValue);
-	};
-
 	const [infoloading, setInfoLoading] = useState(false);
 	const [csvloading, setCsvLoading] = useState(false);
 	const [projectsloading, setProjectsLoading] = useState(false);
 	const [reposloading, setReposLoading] = useState(false);
 	const [inforows, setInfoRows] = useState<any[]>([]);
 	const [csvrows, setCsvRows] = useState<any[]>([]);
+	const [csvprojectsrows, setCsvProjectsRows] = useState<any[]>([]);
 	const [projectsrows, setProjectsRows] = useState<any[]>([]);
 	const [reposrows, setReposRows] = useState<any[]>([]);
-	useEffect(() => {
-		getfxn(_info, setInfoLoading, setInfoRows);
-		getfxn(_csv, setCsvLoading, setCsvRows);
-		getfxn(_projects, setProjectsLoading, setProjectsRows);
-		getfxn(_git_repos, setReposLoading, setReposRows);
-	}, []);
+
+	useEffect(() => { refresh();}, []);
 
 	async function clearcache() {
 		try {
-			const response = await fetch(`${API_URL}/refresh`, {
-				method: 'POST',
-			});
+			const response = await fetch(`${API_URL}/refresh`, { method: 'POST' });
 			if (response.ok) {
 				console.log('Cache cleared successfully');
 				await refresh();
 			}
-		} catch (error) {
-			console.error('Error clearing cache:', error);
-		}
+		} catch (error) { console.error('Error clearing cache:', error); }
 	}
 
 	async function refresh() {
 		console.log('Refreshing data');
-		await getfxn(_info, setInfoLoading, setInfoRows);
-		await getfxn(_csv, setCsvLoading, setCsvRows);
-		await getfxn(_projects, setProjectsLoading, setProjectsRows);
-		await getfxn(_git_repos, setReposLoading, setReposRows);
+		Promise.all([
+			getfxn(_info, setInfoLoading, setInfoRows),
+			getfxn(_csv, setCsvLoading, setCsvRows),
+			getfxn(_csv_projects, setCsvLoading, setCsvProjectsRows),
+			getfxn(_projects, setProjectsLoading, setProjectsRows),
+			getfxn(_git_repos, setReposLoading, setReposRows),
+		]);
 	}
 
 
 	async function getfxn(fxn: any, loadfxn: any, setfxn: any) {
 		loadfxn(true);
-		try {
-			const rows = await fxn();
-			setfxn(rows);
-		}
+		try { setfxn(await fxn()); }
 		catch (error) { console.error('Error fetching data:', error); }
 		finally { loadfxn(false); }
 	}
 
-	async function onDrop(acceptedFiles: File[]) {
-		const file = acceptedFiles[0];
-		if (file) {
-			setCsvLoading(true);
-			console.log(file);
-			const formData = new FormData();
-			formData.append("file", file);
+	async function dropped(file: File, upload_url: string, ingest_url: string, setloading: any, setrows: any, fxn: any) {
 
-			try {
-				const response = await fetch(`${API_URL}/upload/csv`, {
-					headers: {
-						'Authorization': 'Basic ' + btoa(credentials.username + ":" + credentials.password),
-					},
-					method: 'POST',
-					body: formData,
-				});
-				const result = await response.json();
-				if (response.ok) {
-					console.log('File uploaded successfully:', result);
-					/* await refresh(); */
-					await getfxn(_csv, setCsvLoading, setCsvRows);
-					setCsvLoading(true);
+		console.log(file);
+		const formData = new FormData();
+		formData.append("file", file);
 
-					const ingestreponse = await _fetch(`${API_URL}/ingest/csv`, {
-						method: 'POST',
-					});
-					const ingestresult = await ingestreponse.json();
-					if (ingestreponse.ok) {
-						console.log('Ingested successfully:', ingestresult);
-						/* await refresh(); */
-						await getfxn(_info, setInfoLoading, setInfoRows);
-						await getfxn(_csv, setCsvLoading, setCsvRows);
-						await getfxn(_projects, setProjectsLoading, setProjectsRows);
-					} else {
-						console.error('Failed to ingest:', ingestresult);
-						throw new Error(ingestresult.message);
-					}
-				} else {
-					console.error('Failed to upload file:', result);
-					throw new Error(result.message);
-				}
-			} catch (error) {
-				console.error('Error uploading file:', error);
-			} finally {
-				setCsvLoading(false);
-			}
-		}
+		try {
+			setloading(true);
+			const response = await fetch(`${API_URL}/${upload_url}`, {
+				headers: { 'Authorization': 'Basic ' + btoa(credentials.username + ":" + credentials.password) },
+				method: 'POST',
+				body: formData,
+			});
+			const result = await response.json();
+			setloading(false);
+
+			if (!response.ok) {
+				console.error('Failed to upload file:', result);
+				throw new Error(result.message);
+			} else {getfxn(fxn, setloading, setrows);}
+
+			console.log('File uploaded successfully:', result);
+
+			setloading(true);
+			const ingestreponse = await _fetch(`${API_URL}/${ingest_url}`, {method: 'POST'});
+			const ingestresult = await ingestreponse.json();
+			setloading(false);
+
+			if (!ingestreponse.ok) {
+				console.error('Failed to ingest file:', ingestresult);
+				throw new Error(ingestresult.message);
+			} else {clearcache();}
+
+		} catch (error) {
+			console.error('Error uploading file:', error);
+		} finally {}
+
 	}
 
-	const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+	async function onCsvDrop(acceptedFiles: File[]) {
+		const file = acceptedFiles[0];
+		if (file) { dropped(file, 'upload/csv', 'ingest/csv', setCsvLoading, setCsvRows, _csv); }
+	}
+	async function onProjectsDrop(acceptedFiles: File[]) {
+		const file = acceptedFiles[0];
+		if (file) { dropped(file, 'upload/projects', 'ingest/projects', setCsvLoading, setCsvProjectsRows, _csv_projects); }
+	}
+
+	const { getRootProps: getCsvRootProps, getInputProps: getCsvInputProps, isDragActive: isCsvDragActive } = useDropzone({ onDrop: onCsvDrop });
+	const { getRootProps: getProjectsRootProps, getInputProps: getProjectsInputProps, isDragActive: isProjectsDragActive } = useDropzone({ onDrop: onProjectsDrop });
 
 	return (
 		<>
 			<h1>SPARK! AUTOMATIONS</h1>
 			<Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-				<Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
+				<Tabs value={value} onChange={(event: React.SyntheticEvent, newValue: number) => { setValue(newValue); }} aria-label="basic tabs example">
 					<Tab label="Actions" 		{...TabStyle(0)} />
 					<Tab label="Github CRUD" 	{...TabStyle(1)} />
 					<Tab label="Retool" 		{...TabStyle(2)} />
 				</Tabs>
 
-				<Button 
-					variant="outlined" 
-					color="info" 
-					onClick={() => clearcache()} 
+				<Button
+					variant="outlined"
+					color="primary"
+					onClick={() => clearcache()}
 				>
 					refresh cache 🔄
 				</Button>
@@ -173,29 +139,44 @@ function App() {
 				<Divider style={{ backgroundColor: '#fff', height: 1, marginTop: 20, marginBottom: 20 }} />
 
 				<h2>Ingest User Project Repos Details</h2>
-				<h4>Upload CSV file. (this will automatically make any projects or users as needed)</h4>
-				<div {...getRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center', cursor: 'pointer' }}>
-					<input {...getInputProps()} />
-					{
-						isDragActive ?
-							<p>Drop the file here ...</p> :
-							<p>Drag and drop a CSV file here, or click to select a file</p>
-					}
-				</div>
-				<Csv csvloading={csvloading} csvrows={csvrows} callback={refresh} />
+				<h4>Upload CSV file for the CSV TABLE or the CSV_PROJECTS table</h4>
+				<Box sx={{ display: 'flex', gap: 2, width: '100%'}}>
+					<Box sx={{ flex: 1 }}>
+						<div {...getCsvRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center', cursor: 'pointer' }}>
+							<input {...getCsvInputProps()} />
+							{
+								isCsvDragActive ?
+									<p>Drop the file here ...</p> :
+									<p><b>(CSV TABLE)</b> Drag and drop a CSV file here, or click to select a file</p>
+							}
+						</div>
+					</Box>
+					<Box sx={{ flex: 1 }}>
+						<div {...getProjectsRootProps()} style={{ padding: 20, border: '2px dashed #007bff', borderRadius: 5, textAlign: 'center', cursor: 'pointer' }}>
+							<input {...getProjectsInputProps()} />
+							{
+								isProjectsDragActive ?
+									<p>Drop the file here ...</p> :
+									<p><b>(PROJECTS TABLE)</b> Drag and drop a CSV file here, or click to select a file</p>
+							}
+						</div>
+					</Box>
+				</Box>
+
+				<Csv csvloading={csvloading} csvrows={csvrows} csvprojectsrows={csvprojectsrows} callback={refresh} />
 
 				<Divider style={{ backgroundColor: '#fff', height: 1, marginTop: 20, marginBottom: 20 }} />
 
 				<h2>Set selected projects to Push/Pull</h2>
-				<h4>Select the projects you want to change to view / write</h4>
+				<h4>(projects table) Select the projects you want to change to view / write</h4>
 				<Projects projectsloading={projectsloading} projectsrows={projectsrows} callback={refresh} />
 
 
 			</TabPanel>
 			<TabPanel value={value} index={1}>
 				<>
-				<h2>CRUD: ALL REPOS</h2>
-				<Repos reposloading={reposloading} reposrows={reposrows} />
+					<h2>CRUD: ALL REPOS</h2>
+					<Repos reposloading={reposloading} reposrows={reposrows} />
 				</>
 			</TabPanel>
 			<TabPanel value={value} index={2}>

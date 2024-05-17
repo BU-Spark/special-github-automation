@@ -77,16 +77,17 @@ export default function Repos({ reposloading, reposrows }: any) {
         <>
             <Box sx={{ height: 400, width: '100%', backgroundColor: "#242424", marginBottom: 2 }}>
                 <DataGrid
+                    rowHeight={28}
                     rows={reposrows}
                     columns={reposcolumns}
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 5,
+                                pageSize: 10,
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}
+                    pageSizeOptions={[10]}
                     disableRowSelectionOnClick
                     checkboxSelection
                     onRowSelectionModelChange={selectionchange}
@@ -121,6 +122,7 @@ export default function Repos({ reposloading, reposrows }: any) {
             }
             <Box sx={{ width: '100%', backgroundColor: "#242424", marginTop: 2 }}>
                 <DataGrid
+                    rowHeight={28}
                     rows={results.map((result, index) => ({ id: index, result }))}
                     columns={[
                         { field: 'id', headerName: 'ID', flex: .25 },

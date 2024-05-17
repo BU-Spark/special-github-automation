@@ -121,29 +121,23 @@ async def add_user_to_repos(request: Request):
 
 @app.post("/upload/csv")
 async def upload_file(file: UploadFile = File(...)):
-    try:
-        await deletecache()
-        status = db.ucsv(pd.read_csv(file.file))
-        return {"status": status}
-    except Exception as e: return {"status": "failed", "error": str(e)}
+    try: await deletecache() ; return {"status": db.ucsv(pd.read_csv(file.file))}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/upload/projects")
 async def upload_projects(file: UploadFile = File(...)):
     try: await deletecache() ; return {"status": db.uprojects(pd.read_csv(file.file))}
-    except Exception as e: return {"status": "failed", "error": str(e)}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/ingest/csv")
 async def ingest():
-    try: 
-        await deletecache()
-        status = db.ingest()
-        return {"status": status}
-    except Exception as e: return {"status": "failed", "error": str(e)}
+    try: await deletecache() ; return {"status": db.ingest()}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/ingest/projects")
 async def ingest_projects():
     try: await deletecache() ; return {"status": db.ingest_projects()}
-    except Exception as e: return {"status": "failed", "error": str(e)}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/process")
 async def process():
@@ -161,6 +155,12 @@ async def get_info():
 async def get_csv():
     try: return {"csv": db.gcsv()}
     except Exception as e: return {"status": "failed", "error": str(e)}
+    
+@app.get("/get_csv_projects")
+@cached(ttl=180, alias="default", key="csv_projects")
+async def get_csv_projects():
+    try: return {"csv_projects": db.gcsvprojects()}
+    except HTTPException as e: raise HTTPException(status_code=500, detail=str(e))
     
 @app.get("/get_projects")
 @cached(ttl=180, alias="default", key="projects")

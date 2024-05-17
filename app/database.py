@@ -134,9 +134,59 @@ def ingest_projects():
     
     for row in rows:
         try:
-            print(row)
+            print("---")
+            print("ROW:", row[:-1])
+            
+            csvid, semester, project, project_github_url, status = row
+            
+            # try to find the project in the project table, if not found, insert it            
+            project_id = None
+            cursor.execute(f"SELECT * FROM project WHERE project_name = '{project}'")
+            fetchproject = cursor.fetchone()
+            if not fetchproject:                
+                # get the semester_id from the semester table by using semester name
+                print("- GETTING SEMESTER ID", semester)
+                cursor.execute(f"SELECT * FROM semester WHERE semester_name = '{semester}'")
+                semester_id = cursor.fetchone()[0]
+                
+                # try to get the github url from the project_github_url, if not found, set it to null
+                github_url = project_github_url if project_github_url else None
+                
+                # insert the project into the project table with the schema (project_name, semester_id, github_url, created_at) with the github url being null
+                print("- INSERTING PROJECT", project, semester_id)
+                if github_url:
+                    cursor.execute(f"INSERT INTO project (project_name, semester_id, github_url) VALUES ('{project}', {semester_id}, '{github_url}') RETURNING project_id")
+                else:
+                    cursor.execute(f"INSERT INTO project (project_name, semester_id) VALUES ('{project}', {semester_id}) RETURNING project_id")
+                project_id = cursor.fetchone()[0]
+                
+                # now finally, update the csv table status column to "all systems operational"
+                print("- UPDATING CSV WITH SUCCESS", csvid)
+                cursor.execute(f"UPDATE csv_projects SET status = 'all systems operational' WHERE id = {csvid}")
+            else:
+                print("- PROJECT FOUND:", fetchproject)
+                project_id = fetchproject[0]
+                
+                # update the project github url if it is not set
+                if not fetchproject[3] and project_github_url:
+                    print("- UPDATING PROJECT GITHUB URL", project_github_url)
+                    cursor.execute(f"UPDATE project SET github_url = '{project_github_url}' WHERE project_id = {project_id}")
+                    cursor.execute(f"UPDATE csv_projects SET status = 'project already exists, but changed github url' WHERE id = {csvid}")
+                else:
+                    # update the csv_projects table status column to "project already exists"
+                    print("- UPDATING CSV_PROJECTS WITH EXISTS", csvid)
+                    cursor.execute(f"UPDATE csv_projects SET status = 'project already exists' WHERE id = {csvid}")
+
+            conn.commit()  # Commit the transaction
+            
         except psycopg2.Error as e:
             print(f"An error occurred: {e}")
+            
+            # update the csv table status column with the text of the error
+            print("-UPDATING CSV WITH ERROR", csvid)
+            conn.rollback()
+            cursor.execute(f"UPDATE csv_projects SET status = '{e}' WHERE id = {csvid}")
+            conn.commit()
 
 def process():
     """Processes data that was just ingested."""
@@ -324,6 +374,21 @@ def gcsv():
     
     return result
 
+def gcsvprojects():
+    """Returns a list of dictionaries containing the data from the 'csv_projects' table."""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM csv_projects")
+    rows = cursor.fetchall()
+    
+    result = [{ "id": row[0], "semester": row[1], "project": row[2], "project_github_url": row[3], "status": row[4] } for row in rows]
+    
+    cursor.close()
+    conn.close()
+    
+    return result
+
 def upload(dataframe, table_name, colmap):
     """Inserts data from a pandas DataFrame to a specified PostgreSQL table."""
     conn = connect()
@@ -355,7 +420,6 @@ def upload(dataframe, table_name, colmap):
         cursor.close()
         conn.close()
     
-
 def ucsv(dataframe):
     """Inserts data from a pandas DataFrame to the 'csv' PostgreSQL table."""
     
@@ -377,14 +441,13 @@ def ucsv(dataframe):
     
     upload(dataframe, 'csv', colmap)
     
-
 def uprojects(dataframe):
     """Inserts data from a pandas DataFrame to the 'csv_projects' PostgreSQL table."""
     
     colmap = {
         'Semester': 'semester',
         'Project': 'project',
-        'Github URL': 'github_url',
+        'Project Github Url': 'project_github_url',
     }
 
     upload(dataframe, 'csv_projects', colmap)

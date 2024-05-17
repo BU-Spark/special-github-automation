@@ -64,11 +64,12 @@ export default function General({ infoloading, inforows }: any) {
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 5,
+                                pageSize: 25,
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}   
+                    rowHeight={28}
+                    pageSizeOptions={[25]}   
                     disableRowSelectionOnClick
                     loading={infoloading}
                     style={

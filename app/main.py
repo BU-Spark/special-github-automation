@@ -43,9 +43,8 @@ app.add_middleware(middleware.BasicAuthMiddleware,
 # ========================================= functionality =========================================
 
 async def deletecache():
-    await aiocache.delete("info")
-    await aiocache.delete("csv")
-    await aiocache.delete("projects")
+    cache = aiocache.caches.get('default') 
+    await cache.clear()
 
 # root route
 @app.get("/")
@@ -62,7 +61,7 @@ async def refresh():
     await cache.clear()
     return {"status": "cache cleared"}
 
-# ============================================ routing  ===========================================
+# ============================================ retool  ===========================================
 
 # route called set_repo_users that takes in a repo https url, and a list of usernames
 @app.post("/set_repo_users")
@@ -146,19 +145,19 @@ async def process():
     except Exception as e: return {"status": "failed", "error": str(e)}
 
 @app.get("/get_info")
-@cached(ttl=300, alias="default", key="info")
+@cached(ttl=180, alias="default", key="info")
 async def get_info():
     try: return {"info": db.information()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
 @app.get("/get_csv")
-@cached(ttl=300, alias="default", key="csv")
+@cached(ttl=180, alias="default", key="csv")
 async def get_csv():
     try: return {"csv": db.gcsv()}
     except Exception as e: return {"status": "failed", "error": str(e)}
     
 @app.get("/get_projects")
-@cached(ttl=300, alias="default", key="projects")
+@cached(ttl=180, alias="default", key="projects")
 async def get_projects():
     try: return {"projects": db.projects()}
     except Exception as e: return {"status": "failed", "error": str(e)}

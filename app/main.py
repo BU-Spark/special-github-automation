@@ -34,7 +34,11 @@ aiocache.caches.set_config({
 
 # cors
 app.add_middleware(CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    allow_origins=["*", "https://special-github-automation.vercel.app/", 
+                   "https://special-github-automation.vercel.app",
+                   "special-github-automation.vercel.app",
+                   ],
+    allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 app.add_middleware(middleware.BasicAuthMiddleware, 
     allowed=["/", "/refresh"]

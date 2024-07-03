@@ -23,20 +23,20 @@ easiest way to get this up an running is via railway
 1. click the "Add a new service" button
 2. choose the github repo "special-github-automation"
 3. the initial deployment will fail, that is fine
-4. this resource will be our **client**
-- navigate to the environment variables tab, paste in all the required variables from the .env file
-- Important: also add a PORT environment variable with the value **3000**
-- navigate to the Source section under settings, and change the build directory to "client"
-- click the "Deploy" button
-- generate a domain for this resource via the networking section (ensure port is 3000)
-5. click the "Add a new service" button
-6. choose the github repo "special-github-automation"
-7. the initial deployment will fail, that is fine
-7. this resource will be our **server**
+4. this resource will be our **server**
 - navigate to the environment variables tab, paste in all the required variables from the .env file
 - Important: also add a PORT environment variable with the value **5000**
 - navigate to the source section under settings, and change the build directory to "app"
 - click the "Deploy" button
 - generate a domain for this resource via the networking section (ensure port is 5000)
-8. you should now have a working instance of this project
+5. click the "Add a new service" button
+6. choose the github repo "special-github-automation"
+7. the initial deployment will fail, that is fine
+8. this resource will be our **client**
+- navigate to the environment variables tab, paste in all the required variables from the .env file
+- Important: also add a PORT environment variable with the value **3000**
+- navigate to the Source section under settings, and change the build directory to "client"
+- click the "Deploy" button
+- generate a domain for this resource via the networking section (ensure port is 3000)
+9. you should now have a working instance of this project
 

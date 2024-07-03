@@ -18,7 +18,12 @@
 - `$ npm start`
 
 ### how to run own instance
-easiest way to get this up an running is via railway
+easiest way to get this up an running is via railway by using this one click deploy button  
+  
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/LCQdts?referralCode=3DmgGL)
+
+or via setting it up yourself on railway  
+
 0. create an empty railway project
 1. click the "Add a new service" button
 2. choose the github repo "special-github-automation"

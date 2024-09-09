@@ -42,7 +42,7 @@ app.add_middleware(
 )
 
 app.add_middleware(middleware.BasicAuthMiddleware, 
-    allowed=["/", "/refresh"]
+    allowed=["/", "/refresh", "/ping"]
 )
 
 # ========================================= functionality =========================================
@@ -54,6 +54,10 @@ async def deletecache():
 # root route
 @app.get("/")
 async def root(): return {"/": "/"}
+
+# sanity check
+@app.get("/ping")
+async def ping(): return {"status": "pong"}
 
 # route to check authentication status (uses middleware)
 @app.post("/authenticate")

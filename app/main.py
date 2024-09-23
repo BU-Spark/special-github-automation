@@ -19,12 +19,18 @@ from aiocache.decorators import cached
 
 # env
 load_dotenv()
-GITHUB_PAT = os.getenv('GITHUB_PAT')
+TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT')
+SPARK_GITHUB_PATH = os.getenv('SPARK_GITHUB_PATH')
 
 # app
 app = FastAPI()
-automation = gh.Automation(GITHUB_PAT, 'spark-tests')
-github = git.Github(GITHUB_PAT, 'spark-tests')
+
+automation = gh.Automation(TEST_GITHUB_PAT, 'spark-tests')
+github = git.Github(TEST_GITHUB_PAT, 'spark-tests')
+
+# automation = gh.Automation(SPARK_GITHUB_PATH, 'BU-Spark')
+# github = git.Github(SPARK_GITHUB_PATH, 'BU-Spark')
+
 aiocache.caches.set_config({
     'default': {
         'cache': 'aiocache.SimpleMemoryCache',

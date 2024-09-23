@@ -7,11 +7,6 @@ import os
 from typing import Literal, Optional
 from dotenv import load_dotenv
 
-# =========================================== env setup ===========================================
-
-load_dotenv()
-GITHUB_PAT = os.getenv('GITHUB_PAT')
-
 # =========================================== automation ==========================================
 
 class Automation:
@@ -27,6 +22,7 @@ class Automation:
             'Authorization': f'Bearer {GITHUB_PAT}',
             'X-GitHub-Api-Version': '2022-11-28'
         }
+        print(f"automation initialized with {GITHUB_PAT} and {ORG_NAME}")
     
     def get_organization_repositories(self) -> list[str]:
         """

@@ -7,10 +7,6 @@ import csv
 import os
 import psycopg2
 
-# =========================================== env setup ===========================================
-
-from dotenv import load_dotenv ; load_dotenv() ; GITHUB_PAT = os.getenv('GITHUB_PAT')
-
 # ============================================= Github ============================================
 
 class Github:
@@ -27,6 +23,7 @@ class Github:
             'Authorization': f'Bearer {GITHUB_PAT}',
             'X-GitHub-Api-Version': '2022-11-28'
         }
+        print(f"Github initialized with PAT: {GITHUB_PAT} and {ORG_NAME}")
         
     def extract_user_repo_from_ssh_url(self, ssh_url: str) -> tuple[str, str]:
         """

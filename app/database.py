@@ -1,9 +1,10 @@
-# import =====================================
+# Import =====================================
 
 import os
 from typing import Literal
 import psycopg2
 import psycopg2.extras
+from psycopg2 import sql  # Importing sql module for safe SQL composition
 import pandas as pd
 import github as git
 from dotenv import load_dotenv
@@ -36,7 +37,9 @@ def dump(table_name):
         return
     
     try:
-        cursor.execute(f"SELECT * FROM \"{table_name}\"")
+        # Use sql.Identifier to safely include the table name
+        query = sql.SQL("SELECT * FROM {table}").format(table=sql.Identifier(table_name))
+        cursor.execute(query)
         columns = [desc[0] for desc in cursor.description]
         rows = cursor.fetchall()
         if not rows:
@@ -63,16 +66,19 @@ def ingest():
         try:
             print("---")
             print("ROW:", row[:-1])
-            csvid, semester, course, project, organization, team, role, fname, lname, name, email, buid, github, process_status, project_github_url = row
+            csvid, semester, course, project, organization, team, role, fname, lname, name, email, buid, github_username, process_status, project_github_url = row
         
             # try to find the user in the user table, if not found, insert it
             user_id = None
-            cursor.execute(f"SELECT * FROM \"user\" WHERE email = '{email}'")
+            cursor.execute("SELECT * FROM \"user\" WHERE email = %s", (email,))
             fetchuser = cursor.fetchone()
             if not fetchuser:
                 # user table schema is (id, buid, name, email, github)
-                print("- USER NOT FOUND, INSERTING", buid, name, email, github)
-                cursor.execute(f"INSERT INTO \"user\" (buid, name, email, github) VALUES ('{buid}', '{name}', '{email}', '{github}') RETURNING user_id")
+                print("- USER NOT FOUND, INSERTING", buid, name, email, github_username)
+                cursor.execute(
+                    "INSERT INTO \"user\" (buid, name, email, github) VALUES (%s, %s, %s, %s) RETURNING user_id",
+                    (buid, name, email, github_username)
+                )
                 user_id = cursor.fetchone()[0]
                 print("> USER ID", user_id)
             else:
@@ -81,46 +87,65 @@ def ingest():
 
             # try to find the project in the project table, if not found, insert it            
             project_id = None
-            cursor.execute(f"SELECT * FROM project WHERE project_name = '{project}'")
+            cursor.execute("SELECT * FROM project WHERE project_name = %s", (project,))
             fetchproject = cursor.fetchone()
             if not fetchproject:                
                 # get the semester_id from the semester table by using semester name
                 print("- GETTING SEMESTER ID", semester)
-                cursor.execute(f"SELECT * FROM semester WHERE semester_name = '{semester}'")
-                semester_id = cursor.fetchone()[0]
+                cursor.execute("SELECT * FROM semester WHERE semester_name = %s", (semester,))
+                semester_row = cursor.fetchone()
+                if not semester_row:
+                    print(f"Semester '{semester}' not found.")
+                    continue  # Skip this iteration if semester not found
+                semester_id = semester_row[0]
                 
                 # try to get the github url from the project_github_url, if not found, set it to null
                 github_url = project_github_url if project_github_url else None
                 
-                # insert the project into the project table with the schema (project_name, semester_id, github_url, created_at) with the github url being null
+                # insert the project into the project table
                 print("- INSERTING PROJECT", project, semester_id)
                 if github_url:
-                    cursor.execute(f"INSERT INTO project (project_name, semester_id, github_url) VALUES ('{project}', {semester_id}, '{github_url}') RETURNING project_id")
+                    cursor.execute(
+                        "INSERT INTO project (project_name, semester_id, github_url) VALUES (%s, %s, %s) RETURNING project_id",
+                        (project, semester_id, github_url)
+                    )
                 else:
-                    cursor.execute(f"INSERT INTO project (project_name, semester_id) VALUES ('{project}', {semester_id}) RETURNING project_id")
+                    cursor.execute(
+                        "INSERT INTO project (project_name, semester_id) VALUES (%s, %s) RETURNING project_id",
+                        (project, semester_id)
+                    )
                 project_id = cursor.fetchone()[0]
             else:
                 print("- PROJECT FOUND:", fetchproject)
                 project_id = fetchproject[0]
             
-            # update the user_project table, schema is (user_id, project_id, created_at, status), use 'started' as status
+            # update the user_project table
             print("- INSERTING USER_PROJECT", user_id, project_id, "started")
-            cursor.execute(f"INSERT INTO user_project (project_id, user_id, status) VALUES ({project_id}, {user_id}, 'started')")
+            cursor.execute(
+                "INSERT INTO user_project (project_id, user_id, status) VALUES (%s, %s, %s)",
+                (project_id, user_id, 'started')
+            )
             
-            # now finally, update the csv table status column to "all systems operational"
+            # update the csv table status
             print("- UPDATING CSV WITH SUCCESS", csvid)
-            cursor.execute(f"UPDATE csv SET status = 'all systems operational' WHERE id = {csvid}")
+            cursor.execute(
+                "UPDATE csv SET status = %s WHERE id = %s",
+                ('all systems operational', csvid)
+            )
 
             conn.commit()  # Commit the transaction
         except psycopg2.Error as e:
             print(f"An error occurred: {e}")
             
             # update the csv table status column with the text of the error
-            print("-UPDATING CSV WITH ERROR", csvid)
+            print("- UPDATING CSV WITH ERROR", csvid)
             conn.rollback()
-            cursor.execute(f"UPDATE csv SET status = '{e}' WHERE id = {csvid}")
+            cursor.execute(
+                "UPDATE csv SET status = %s WHERE id = %s",
+                (str(e), csvid)
+            )
             conn.commit()
-        
+            
     cursor.close()
     conn.close()  # Also close the connection after processing
 
@@ -141,28 +166,41 @@ def ingest_projects():
             
             # try to find the project in the project table, if not found, insert it            
             project_id = None
-            cursor.execute(f"SELECT * FROM project WHERE project_name = '{project}'")
+            cursor.execute("SELECT * FROM project WHERE project_name = %s", (project,))
             fetchproject = cursor.fetchone()
             if not fetchproject:                
                 # get the semester_id from the semester table by using semester name
                 print("- GETTING SEMESTER ID", semester)
-                cursor.execute(f"SELECT * FROM semester WHERE semester_name = '{semester}'")
-                semester_id = cursor.fetchone()[0]
+                cursor.execute("SELECT * FROM semester WHERE semester_name = %s", (semester,))
+                semester_row = cursor.fetchone()
+                if not semester_row:
+                    print(f"Semester '{semester}' not found.")
+                    continue  # Skip this iteration if semester not found
+                semester_id = semester_row[0]
                 
                 # try to get the github url from the project_github_url, if not found, set it to null
                 github_url = project_github_url if project_github_url else None
                 
-                # insert the project into the project table with the schema (project_name, semester_id, github_url, created_at) with the github url being null
+                # insert the project into the project table
                 print("- INSERTING PROJECT", project, semester_id)
                 if github_url:
-                    cursor.execute(f"INSERT INTO project (project_name, semester_id, github_url) VALUES ('{project}', {semester_id}, '{github_url}') RETURNING project_id")
+                    cursor.execute(
+                        "INSERT INTO project (project_name, semester_id, github_url) VALUES (%s, %s, %s) RETURNING project_id",
+                        (project, semester_id, github_url)
+                    )
                 else:
-                    cursor.execute(f"INSERT INTO project (project_name, semester_id) VALUES ('{project}', {semester_id}) RETURNING project_id")
+                    cursor.execute(
+                        "INSERT INTO project (project_name, semester_id) VALUES (%s, %s) RETURNING project_id",
+                        (project, semester_id)
+                    )
                 project_id = cursor.fetchone()[0]
                 
-                # now finally, update the csv table status column to "all systems operational"
+                # update the csv_projects table status
                 print("- UPDATING CSV WITH SUCCESS", csvid)
-                cursor.execute(f"UPDATE csv_projects SET status = 'all systems operational' WHERE id = {csvid}")
+                cursor.execute(
+                    "UPDATE csv_projects SET status = %s WHERE id = %s",
+                    ('all systems operational', csvid)
+                )
             else:
                 print("- PROJECT FOUND:", fetchproject)
                 project_id = fetchproject[0]
@@ -170,29 +208,41 @@ def ingest_projects():
                 # update the project github url if it is not set
                 if not fetchproject[3] and project_github_url:
                     print("- UPDATING PROJECT GITHUB URL", project_github_url)
-                    cursor.execute(f"UPDATE project SET github_url = '{project_github_url}' WHERE project_id = {project_id}")
-                    cursor.execute(f"UPDATE csv_projects SET status = 'project already exists, but changed github url' WHERE id = {csvid}")
+                    cursor.execute(
+                        "UPDATE project SET github_url = %s WHERE project_id = %s",
+                        (project_github_url, project_id)
+                    )
+                    cursor.execute(
+                        "UPDATE csv_projects SET status = %s WHERE id = %s",
+                        ('project already exists, but changed github url', csvid)
+                    )
                 else:
-                    # update the csv_projects table status column to "project already exists"
+                    # update the csv_projects table status
                     print("- UPDATING CSV_PROJECTS WITH EXISTS", csvid)
-                    cursor.execute(f"UPDATE csv_projects SET status = 'project already exists' WHERE id = {csvid}")
+                    cursor.execute(
+                        "UPDATE csv_projects SET status = %s WHERE id = %s",
+                        ('project already exists', csvid)
+                    )
 
-            conn.commit()  # Commit the transaction
-            
+                conn.commit()  # Commit the transaction
+                
         except psycopg2.Error as e:
             print(f"An error occurred: {e}")
             
-            # update the csv table status column with the text of the error
-            print("-UPDATING CSV WITH ERROR", csvid)
+            # update the csv_projects table status column with the text of the error
+            print("- UPDATING CSV WITH ERROR", csvid)
             conn.rollback()
-            cursor.execute(f"UPDATE csv_projects SET status = '{e}' WHERE id = {csvid}")
+            cursor.execute(
+                "UPDATE csv_projects SET status = %s WHERE id = %s",
+                (str(e), csvid)
+            )
             conn.commit()
+    
+    cursor.close()
+    conn.close()
 
 def process():
     """Processes data that was just ingested."""
-    
-    # go through the user_project table, and then invite the user to the project if they are not already invited or a collaborator,
-    # and then update the user_project table status to 'push' 
     
     result = []
     
@@ -202,17 +252,20 @@ def process():
     cursor.execute("SELECT * FROM user_project WHERE status = 'started'")
     user_projects = cursor.fetchall()
     
-    if not user_projects: return ["No user_projects with 'started' status to process."]
+    if not user_projects:
+        cursor.close()
+        conn.close()
+        return ["No user_projects with 'started' status to process."]
     
     for user_project in user_projects:
         try:
             project_id = user_project[0]
             user_id = user_project[1]
             
-            cursor.execute(f"SELECT * FROM project WHERE project_id = {project_id}")
+            cursor.execute("SELECT * FROM project WHERE project_id = %s", (project_id,))
             project = cursor.fetchone()
             
-            cursor.execute(f"SELECT * FROM \"user\" WHERE user_id = {user_id}")
+            cursor.execute("SELECT * FROM \"user\" WHERE user_id = %s", (user_id,))
             user = cursor.fetchone()
             
             project_name = project[1]
@@ -227,27 +280,36 @@ def process():
             # check if the user is already a collaborator, or has been invited to the project
             if github.check_user_is_collaborator(github_url, github_username):
                 result.append(f"SKIPPED ADDING {github_username} TO {project_name} - ALREADY COLLABORATOR")
-                cursor.execute(f"UPDATE user_project SET status = 'push' WHERE project_id = {project_id} AND user_id = {user_id}")
+                cursor.execute(
+                    "UPDATE user_project SET status = %s WHERE project_id = %s AND user_id = %s",
+                    ('push', project_id, user_id)
+                )
                 conn.commit()
                 continue
                 
             # check if the user is already invited to the project
             if github_username in github.get_users_invited_on_repo(github_url):
                 result.append(f"SKIPPED ADDING {github_username} TO {project_name} - ALREADY INVITED")
-                cursor.execute(f"UPDATE user_project SET status = 'push' WHERE project_id = {project_id} AND user_id = {user_id}")
+                cursor.execute(
+                    "UPDATE user_project SET status = %s WHERE project_id = %s AND user_id = %s",
+                    ('push', project_id, user_id)
+                )
                 conn.commit()
                 continue
             
             # invite the user to the project
-            status, msg = github.add_user_to_repo(github_url, github_username, 'push')
-            if status != 201:
-                result.append(f"FAILED ADDING {github_username} TO {project_name} - {status} {msg}")
+            status_code, msg = github.add_user_to_repo(github_url, github_username, 'push')
+            if status_code != 201:
+                result.append(f"FAILED ADDING {github_username} TO {project_name} - {status_code} {msg}")
                 continue
             else:
-                result.append(f"ADDED {github_username} TO {project_name} - {status} {msg}")
+                result.append(f"ADDED {github_username} TO {project_name} - {status_code} {msg}")
                 
             # update the user_project table status to 'push'
-            cursor.execute(f"UPDATE user_project SET status = 'push' WHERE project_id = {project_id} AND user_id = {user_id}")
+            cursor.execute(
+                "UPDATE user_project SET status = %s WHERE project_id = %s AND user_id = %s",
+                ('push', project_id, user_id)
+            )
             
             conn.commit()
         except Exception as e:
@@ -259,7 +321,7 @@ def process():
     conn.close()
     
     return result
-    
+        
 def information():
     """Returns a list of dictionaries containing information about the users, projects, and semesters."""
     
@@ -276,7 +338,7 @@ def information():
         user_id = user[0]
         print("- USER:", user)
         
-        cursor.execute(f"SELECT * FROM user_project WHERE user_id = {user_id}")
+        cursor.execute("SELECT * FROM user_project WHERE user_id = %s", (user_id,))
         user_projects = cursor.fetchall()
         
         for user_project in user_projects:
@@ -284,7 +346,7 @@ def information():
             status = user_project[2]
             print("- USER_PROJECT:", user_project)
             
-            cursor.execute(f"SELECT * FROM project WHERE project_id = {project_id}")
+            cursor.execute("SELECT * FROM project WHERE project_id = %s", (project_id,))
             project = cursor.fetchone()
             print("- PROJECT:", project)
             
@@ -292,7 +354,7 @@ def information():
             semester_id = project[2]
             github_url = project[3]
             
-            cursor.execute(f"SELECT * FROM semester WHERE semester_id = {semester_id}")
+            cursor.execute("SELECT * FROM semester WHERE semester_id = %s", (semester_id,))
             semester = cursor.fetchone()
             print("- SEMESTER:", semester)
             
@@ -309,10 +371,8 @@ def information():
     
     cursor.close()
     conn.close()
-    #print("=====================================")
-    #print(result)
     return result    
-
+    
 def projects():
     """Returns a list of dictionaries containing the data from the 'project' table."""
     conn = connect()
@@ -325,7 +385,7 @@ def projects():
     for row in rows:
         
         # get the semester name from the semester id 
-        cursor.execute(f"SELECT * FROM semester WHERE semester_id = {row[2]}")
+        cursor.execute("SELECT * FROM semester WHERE semester_id = %s", (row[2],))
         semester = cursor.fetchone()
         
         result.append({
@@ -337,8 +397,6 @@ def projects():
     
     cursor.close()
     conn.close()
-    #print("=====================================")
-    #print(result)
     return result
 
 def gcsv():
@@ -400,10 +458,14 @@ def upload(dataframe, table_name, colmap):
     dataframe = dataframe.where(pd.notna(dataframe), None)
     
     # Constructing the SQL INSERT statement dynamically based on DataFrame columns
-    columns = ', '.join(dataframe.columns)
-    values_placeholder = ', '.join(['%s'] * len(dataframe.columns))
-    insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({values_placeholder})"
-    
+    columns = list(dataframe.columns)
+    placeholders = [sql.Placeholder()] * len(columns)
+    insert_query = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
+        table=sql.Identifier(table_name),
+        fields=sql.SQL(', ').join(map(sql.Identifier, columns)),
+        values=sql.SQL(', ').join(placeholders)
+    )
+
     print(insert_query)
 
     # Preparing data tuples from the dataframe
@@ -452,26 +514,29 @@ def uprojects(dataframe):
 
     upload(dataframe, 'csv_projects', colmap)
 
-def get_users_in_project(project):
+def get_users_in_project(project_name):
     """Returns a list of dictionaries containing the users from a specified project."""
     conn = connect()
     cursor = conn.cursor()
     
-    cursor.execute(f"SELECT * FROM project WHERE project_name = '{project}'")
+    cursor.execute("SELECT * FROM project WHERE project_name = %s", (project_name,))
     project = cursor.fetchone()
     
-    if not project: return []
+    if not project:
+        cursor.close()
+        conn.close()
+        return []
     
     project_id = project[0]
     
-    cursor.execute(f"SELECT * FROM user_project WHERE project_id = {project_id}")
+    cursor.execute("SELECT * FROM user_project WHERE project_id = %s", (project_id,))
     user_projects = cursor.fetchall()
     
     result = []
     for user_project in user_projects:
         user_id = user_project[1]
         
-        cursor.execute(f"SELECT * FROM \"user\" WHERE user_id = {user_id}")
+        cursor.execute("SELECT * FROM \"user\" WHERE user_id = %s", (user_id,))
         user = cursor.fetchone()
         
         result.append({
@@ -484,47 +549,58 @@ def get_users_in_project(project):
     
     cursor.close()
     conn.close()
-    #print("=====================================")
-    #print(result)
     return result
 
-def change_users_project_status(project: str, user_github: str, status: status) -> tuple[int, str]:
+def change_users_project_status(project_name: str, user_github: str, status: status) -> tuple[int, str]:
     """Changes the status of a user in a project."""
 
     try:
         conn = connect()
         cursor = conn.cursor()
 
-        cursor.execute(f"SELECT * FROM project WHERE project_name = '{project}'")
-        project = cursor.fetchone()
+        cursor.execute("SELECT * FROM project WHERE project_name = %s", (project_name,))
+        project_row = cursor.fetchone()
 
-        if not project: return 404, f"Project {project} not found"
+        if not project_row:
+            cursor.close()
+            conn.close()
+            return 404, f"Project '{project_name}' not found"
 
-        project_id = project[0]
+        project_id = project_row[0]
 
-        cursor.execute(f"SELECT * FROM \"user\" WHERE github = '{user_github}'")
-        user = cursor.fetchone()
+        cursor.execute("SELECT * FROM \"user\" WHERE github = %s", (user_github,))
+        user_row = cursor.fetchone()
 
-        if not user: return 404, f"User {user_github} not found"
+        if not user_row:
+            cursor.close()
+            conn.close()
+            return 404, f"User '{user_github}' not found"
 
-        user_id = user[0]
+        user_id = user_row[0]
 
-        cursor.execute(f"UPDATE user_project SET status = '{status}' WHERE project_id = {project_id} AND user_id = {user_id}")
+        cursor.execute(
+            "UPDATE user_project SET status = %s WHERE project_id = %s AND user_id = %s",
+            (status, project_id, user_id)
+        )
         conn.commit()
 
+        cursor.close()
+        conn.close()
         return 200, f"Successfully changed {user_github}'s status to {status}"
     except Exception as e:
         print(f"An error occurred: {e}")
         conn.rollback()
+        cursor.close()
+        conn.close()
         return 500, str(e)
 
 # ========================================
 
 if __name__ == "__main__":
-    #for table in ['user', 'project', 'semester', 'user_project', 'csv']:
-    #    dump(table)
-        ingest()
-    #projects()
-    #information()
-    #get_users_in_project('Byte')
-    #print(process())
+    # for table in ['user', 'project', 'semester', 'user_project', 'csv']:
+    #     dump(table)
+    ingest()
+    # projects()
+    # information()
+    # get_users_in_project('Byte')
+    # print(process())

@@ -20,7 +20,7 @@ from aiocache.decorators import cached
 # env
 load_dotenv()
 TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT')
-SPARK_GITHUB_PATH = os.getenv('SPARK_GITHUB_PATH')
+SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT')
 
 # app
 app = FastAPI()
@@ -28,8 +28,8 @@ app = FastAPI()
 #automation = gh.Automation(TEST_GITHUB_PAT, 'spark-tests')
 #github = git.Github(TEST_GITHUB_PAT, 'spark-tests')
 
-automation = gh.Automation(SPARK_GITHUB_PATH, 'BU-Spark')
-github = git.Github(SPARK_GITHUB_PATH, 'BU-Spark')
+automation = gh.Automation(SPARK_GITHUB_PAT, 'BU-Spark')
+github = git.Github(SPARK_GITHUB_PAT, 'BU-Spark')
 
 aiocache.caches.set_config({
     'default': {

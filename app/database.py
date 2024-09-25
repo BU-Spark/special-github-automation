@@ -15,10 +15,10 @@ from dotenv import load_dotenv
 load_dotenv()
 POSTGRES_URL = os.getenv('POSTGRES_URL')
 TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT')
-SPARK_GITHUB_PATH = os.getenv('SPARK_GITHUB_PATH')
+SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT')
 
 # app
-github = git.Github(SPARK_GITHUB_PATH, 'BU-Spark')
+github = git.Github(SPARK_GITHUB_PAT, 'BU-Spark')
 
 # const
 status = Literal['started', 'pull', 'push']

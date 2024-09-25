@@ -196,6 +196,12 @@ async def set_projects(request: Request):
         return {"results": results}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/get_results")
+@cached(ttl=180, alias="default", key="results")
+async def get_results():
+    try: return {"results": db.results()}
+    except Exception as e: return {"status": "failed", "error": str(e)}
+
 @app.get("/git/get_all_repos")
 async def get_all_repos():
     try: return {"repos": github.get_all_repos()}

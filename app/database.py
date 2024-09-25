@@ -317,6 +317,10 @@ def process():
             print(f"An error occurred: {e}")
             conn.rollback()
             result.append(f"ERROR ADDING {github_username} TO {project_name} - {e}")
+    
+    # persist the results in the database results table which looks like (id, result)
+    for res in result:
+        cursor.execute("INSERT INTO results (result) VALUES (%s)", (res,))
             
     cursor.close()
     conn.close()
@@ -398,6 +402,21 @@ def projects():
     
     cursor.close()
     conn.close()
+    return result
+
+def results():
+    """Returns a list of dictionaries containing the data from the 'results' table."""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM results")
+    rows = cursor.fetchall()
+    
+    result = [{ "id": row[0], "result": row[1] } for row in rows]
+    
+    cursor.close()
+    conn.close()
+    
     return result
 
 def gcsv():

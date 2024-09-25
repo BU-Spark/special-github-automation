@@ -1,6 +1,6 @@
 import { Box, Button } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_URL } from "../../utils/uri";
 import { useAuth } from "../../context/auth";
 
@@ -128,6 +128,30 @@ export default function Csv({ csvloading, csvrows, csvprojectsrows, callback }: 
     const [locked, setLocked] = useState(true);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
+
+    // useEffect to load in previous results
+    useEffect(() => {
+        console.log('Loading previous results');
+        async function load() {
+            try {
+                const response = await _fetch(`${API_URL}/get_results`, {
+                    method: 'GET',
+                });
+                const result = await response.json();
+                console.log('Result:', result);
+                if (response.ok) {
+                    const logs = result['results'].map((r: any, index: number) => r['result']);
+                    console.log('Loaded previous results:', logs);
+                    setResults(logs);
+                } else throw new Error('Error loading previous results');
+            } catch (error: any) {
+                console.error('Error loading previous results:', error);
+                setResults(['Error loading previous results ' + error.toString()]);
+            }
+        }
+        load();
+    }, []);
+
     async function process() {
         setLoading(true);
         console.log('Processing ingested data into github');

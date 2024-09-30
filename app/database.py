@@ -319,8 +319,14 @@ def process():
             result.append(f"ERROR ADDING {github_username} TO {project_name} - {e}")
     
     # persist the results in the database results table which looks like (id, result)
-    for res in result:
-        cursor.execute("INSERT INTO results (result) VALUES (%s)", (res,))
+    try:
+        print("persisting results")
+        for res in result:
+            cursor.execute("INSERT INTO results (result) VALUES (%s)", (res,))
+        conn.commit()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        conn.rollback()
             
     cursor.close()
     conn.close()

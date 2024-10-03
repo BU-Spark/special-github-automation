@@ -669,61 +669,9 @@ class Automation:
         return result
 # =========================================== runs =============================================
 
-def sheet():
-
-    # path to the CSV file
-    csv_file_path = 'rest.csv'
-    log_file_path = 'output.txt'
-
-    # Open the log file in append mode
-    with open(log_file_path, 'a') as log_file:
-        # Open the CSV file
-        with open(csv_file_path, newline='') as csvfile:
-            # Create a CSV reader object
-            csv_reader = csv.reader(csvfile)
-            repo_users_map: dict[str, list[str]] = {}
-            next(csv_reader)  # Skip the header row
-            for row in csv_reader:
-
-                if len(row) < 2:  # Skip incomplete rows
-                    continue
-                username, repo_ssh_url = row[0], row[1]
-                if repo_ssh_url not in repo_users_map:
-                    repo_users_map[repo_ssh_url] = [username]
-                else:
-                    repo_users_map[repo_ssh_url].append(username)
-
-            for repo_ssh_url, users in repo_users_map.items():
-                print(f"Repo: {repo_ssh_url} has users: {users}")
-                try:
-                    automation = Automation(GITHUB_PAT)
-                    result = automation.set_repo_users(repo_ssh_url, users)
-                    for status, message in result:
-                        log_file.write(f"{status}: {message}\n")
-                except Exception as e:
-                    log_file.write(
-                        f"Failed to update repo: {repo_ssh_url} with error: {str(e)}\n")
-
-def main():
-    # Open the log file in append mode
-    log_file_path = 'output.txt'
-    with open(log_file_path, 'a') as log_file:
-        usersmap = {
-            'git@github.com:spark-tests/initial.git': ['mochiakku', 's-alad']
-        }
-
-        for repo_ssh_url, users in usersmap.items():
-            print(f"Repo: {repo_ssh_url} has users: {users}")
-            try:
-                automation = Automation(GITHUB_PAT, 'spark-tests')
-                result = automation.set_repo_users(repo_ssh_url, users)
-                for status, message in result:
-                    log_file.write(f"{status}: {message}\n")
-            except Exception as e:
-                log_file.write(
-                    f"Failed to update repo: {repo_ssh_url} with error: {str(e)}\n")
-
 def test():
+    load_dotenv()
+    GITHUB_PAT = os.getenv('GITHUB_PAT')
     automation = Automation(GITHUB_PAT, 'spark-tests')
     print(automation.GITHUB_PAT)
     

@@ -5,7 +5,6 @@ from typing import Literal, Optional
 import requests
 import csv
 import os
-import psycopg2
 
 # ============================================= Github ============================================
 
@@ -142,11 +141,13 @@ class Github:
         else:
             raise Exception(f"Failed to fetch collaborators: {collaborators_response.json().get('message', 'Unknown error')}")
     
-    def get_users_invited_on_repo(self, repo_url: str) -> set[str]:
+    def get_users_invited_on_repo(self, repo_url: str, check_expired: bool = False ) -> set[str]:
         """
         Retrieves a set of GitHub usernames who are invited to collaborate on a given repository.
 
-        Args: repo_url (str): The URL of the GitHub repository.
+        Args:
+            repo_url (str): The URL of the GitHub repository.
+            check_expired (bool): If True, only return the usernames of users with expired invitations.
         Returns: set[str]: A set of GitHub usernames who are invited to collaborate on the repository.
         Raises: Exception: If an error occurs during the API request or while processing the response.
         """
@@ -164,13 +165,78 @@ class Github:
             raise Exception(f"Failed to fetch invitations: {str(e)}")
         
         if invitations_response.status_code == 200:
-            return {invitation['invitee']['login'] for invitation in invitations_response.json()}
+            if check_expired:
+                return {invited_collaborators['invitee']['login'] if invited_collaborators["expired"] else None
+                                        for invited_collaborators in invitations_response.json()} - {None}
+            else:
+                return {invitation['invitee']['login'] for invitation in invitations_response.json()}
         elif invitations_response.status_code == 404:
             raise Exception("The repository was not found.")
         elif invitations_response.status_code == 403:
             raise Exception("Access to the repository is forbidden.")
         else:
             raise Exception(f"Failed to fetch invitations: {invitations_response.json().get('message', 'Unknown error')}")
+        
+    def revoke_user_invitation_on_repo(self, repo_url: str, user: str) -> tuple[int, str]:
+        """
+        Revokes an invitation to collaborate on a GitHub repository.
+
+        Args: 
+            repo_url (str): The URL of the GitHub repository.
+            user (str): The username of the GitHub user.
+        Returns: Tuple[int, str]: A tuple containing the status code and message.
+        """
+        
+        ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
+        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        
+        try:
+            invitations_response = requests.get(
+                f'https://api.github.com/repos/{username}/{repo_name}/invitations',
+                headers=self.HEADERS,
+                timeout=10
+            )
+            
+            if invitations_response.status_code != 200:
+                return invitations_response.status_code, 'Failed to fetch invited collaborators'
+            
+            invitation = next((inv for inv in invitations_response.json() if inv['invitee']['login'] == user), None)
+            if invitation:
+                response = requests.delete(
+                    f'https://api.github.com/repos/{username}/{repo_name}/invitations/{invitation["id"]}',
+                    headers=self.HEADERS,
+                    timeout=2
+                )
+                if response.status_code == 204:
+                    return 204, f"Successfully revoked invitation for {user}"
+                else:
+                    return response.status_code, response.json()
+            else:
+                return invitations_response.status_code, invitations_response.json()
+        except Exception as e:
+            return 500, str(e)        
+        
+    def reinvite_expired_users_on_repo(self, repo_url: str) -> list[tuple[int, str]]:
+        """
+        Re-invites users who have expired invitations on a GitHub repository.
+        
+        Args: repo_url (str): The HTTPS URL of the GitHub repository.
+        Returns: list[tuple[int, str]]: A list of tuples containing the status code and message.
+        """
+        
+        results = []
+        try:
+            expired_users = self.get_users_invited_on_repo(repo_url, check_expired=True)
+            print(f"Expired users: {expired_users}")
+            for user in expired_users:
+                result = []
+                status, msg = self.revoke_user_invitation_on_repo(repo_url, user)
+                status, msg = self.add_user_to_repo(repo_url, user, "push")
+                result.append((status, msg))
+            return results
+        except Exception as e:
+            return [(500, str(e))]             
+                                                    
         
     def change_user_permission_on_repo(self, repo_url: str, user: str, permission: perms) -> tuple[int, str]:
         """

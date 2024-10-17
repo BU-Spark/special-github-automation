@@ -1,6 +1,7 @@
 # =========================================== imports =============================================
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, File, UploadFile
+from io import StringIO
+from fastapi import FastAPI, HTTPException, Request, WebSocket, File, UploadFile, BackgroundTasks 
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import pandas as pd
@@ -48,7 +49,7 @@ app.add_middleware(
 )
 
 app.add_middleware(middleware.BasicAuthMiddleware, 
-    allowed=["/", "/refresh", "/ping"]
+    allowed=["/", "/refresh", "/ping", "/airtable-sync"]
 )
 
 # ========================================= functionality =========================================
@@ -84,6 +85,17 @@ async def reinvite_expired_collaborators(request: Request):
         print(r)
         return {"status": r}
     except Exception as e: return {"status": "failed", "error": str(e)}
+    
+# route called airtable-sync that takes in the csv and runs an upload and ingest  
+@app.post("/airtable-sync")
+async def airtable_sync(request: Request, background_tasks: BackgroundTasks):
+    try:
+        data = await request.json()
+        await deletecache()      
+        db.ucsv(pd.read_csv(StringIO(data["csv"])))
+        background_tasks.add_task(db.ingest)
+        return {"status": "success"}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 # ===================================== client functionality ======================================
 

@@ -57,6 +57,7 @@ def dump(table_name):
 
 def ingest():
     """Ingests data from the 'csv' table to the 'user', 'project', 'semester', and 'user_project' tables."""
+    print("INGESTING")
     conn = connect()
     cursor = conn.cursor()
     

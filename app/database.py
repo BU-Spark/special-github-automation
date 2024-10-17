@@ -27,6 +27,17 @@ status = Literal['started', 'pull', 'push']
 
 def connect(): return psycopg2.connect(POSTGRES_URL)
 
+def nuke():
+    """Nukes the csv table."""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM csv")
+    conn.commit()
+    
+    cursor.close()
+    conn.close()
+
 def dump(table_name):
     """ Dumps data from a specified table """
     conn = connect()

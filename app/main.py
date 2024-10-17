@@ -91,10 +91,13 @@ async def reinvite_expired_collaborators(request: Request):
 async def airtable_sync(request: Request, background_tasks: BackgroundTasks):
     try:
         data = await request.json()
-        await deletecache()      
-        db.ucsv(pd.read_csv(StringIO(data["csv"])))
-        background_tasks.add_task(db.ingest)
-        return {"status": "success"}
+        if data["password"] != os.getenv('PASSWORD'): 
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        else:
+            await deletecache()      
+            db.ucsv(pd.read_csv(StringIO(data["csv"])))
+            background_tasks.add_task(db.ingest)
+            return {"status": "success"}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 # ===================================== client functionality ======================================

@@ -1,115 +1,118 @@
-import datetime
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List
+from sqlalchemy import (
+    Column,
+    Integer,
+    Text,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    Enum,
+    PrimaryKeyConstraint,
+)
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
 import enum
 
+Base = declarative_base()
+
 # Enums
-class SemesterEnum(str, enum.Enum):
+class SemesterEnum(enum.Enum):
     Spring = 'Spring'
     Summer = 'Summer'
     Fall = 'Fall'
     Winter = 'Winter'
 
-class StatusEnum(str, enum.Enum):
+class StatusEnum(enum.Enum):
     started = 'started'
     invited = 'invited'
     pull = 'pull'
     push = 'push'
 
-class UserBase(BaseModel):
-    name: Optional[str]
-    email: EmailStr
-    buid: str
-    github: Optional[str]
+class User(Base):
+    __tablename__ = 'user'
 
-class UserCreate(UserBase):
-    pass
+    user_id = Column(Integer, primary_key=True)
+    name = Column(Text)
+    email = Column(Text, nullable=False, unique=True)
+    buid = Column(Text, nullable=False, unique=True)
+    github = Column(Text, unique=True)
 
-class User(UserBase):
-    user_id: int
+    # Relationship to UserProject
+    projects = relationship('UserProject', back_populates='user')
 
-    class Config:
-        orm_mode = True
+class Semester(Base):
+    __tablename__ = 'semester'
 
-class SemesterBase(BaseModel):
-    semester_name: str
-    year: int = 2077
-    semester: Optional[SemesterEnum]
+    semester_id = Column(Integer, primary_key=True)
+    semester_name = Column(Text, nullable=False, unique=True)
+    year = Column(Integer, nullable=False, default=2077)
+    semester = Column(Enum(SemesterEnum))
 
-class SemesterCreate(SemesterBase):
-    pass
+    # Relationship to Project
+    projects = relationship('Project', back_populates='semester')
 
-class Semester(SemesterBase):
-    semester_id: int
+class Project(Base):
+    __tablename__ = 'project'
 
-    class Config:
-        orm_mode = True
+    project_id = Column(Integer, primary_key=True)
+    project_name = Column(Text, nullable=False, unique=True)
+    semester_id = Column(Integer, ForeignKey('semester.semester_id'))
+    github_url = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-class ProjectBase(BaseModel):
-    project_name: str
-    semester_id: Optional[int]
-    github_url: Optional[str]
+    # Relationship to Semester
+    semester = relationship('Semester', back_populates='projects')
 
-class ProjectCreate(ProjectBase):
-    pass
+    # Relationship to UserProject
+    users = relationship('UserProject', back_populates='project')
 
-class Project(ProjectBase):
-    project_id: int
-    created_at: datetime.datetime
+class UserProject(Base):
+    __tablename__ = 'user_project'
+    __table_args__ = (
+        PrimaryKeyConstraint('project_id', 'user_id'),
+    )
 
-    class Config:
-        orm_mode = True
+    project_id = Column(
+        Integer,
+        ForeignKey('project.project_id', onupdate='CASCADE', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey('user.user_id', onupdate='CASCADE', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    status = Column(Enum(StatusEnum))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-class UserProjectBase(BaseModel):
-    project_id: int
-    user_id: int
-    status: Optional[StatusEnum]
+    # Relationships
+    user = relationship('User', back_populates='projects')
+    project = relationship('Project', back_populates='users')
 
-class UserProjectCreate(UserProjectBase):
-    pass
+class CSV(Base):
+    __tablename__ = 'csv'
 
-class UserProject(UserProjectBase):
-    created_at: datetime.datetime
+    id = Column(Integer, primary_key=True)
+    semester = Column(Text)
+    course = Column(Text)
+    project = Column(Text)
+    organization = Column(Text)
+    team = Column(Text)
+    role = Column(Text)
+    first_name = Column(Text)
+    last_name = Column(Text)
+    full_name = Column(Text)
+    email = Column(Text)
+    buid = Column(Text)
+    github_username = Column(Text)
+    status = Column(Text)
+    project_github_url = Column(Text)
 
-    class Config:
-        orm_mode = True
+class CSVProjects(Base):
+    __tablename__ = 'csv_projects'
 
-class CSVBase(BaseModel):
-    semester: Optional[str]
-    course: Optional[str]
-    project: Optional[str]
-    organization: Optional[str]
-    team: Optional[str]
-    role: Optional[str]
-    first_name: Optional[str]
-    last_name: Optional[str]
-    full_name: Optional[str]
-    email: Optional[EmailStr]
-    buid: Optional[str]
-    github_username: Optional[str]
-    status: Optional[str]
-    project_github_url: Optional[str]
-
-class CSVCreate(CSVBase):
-    pass
-
-class CSV(CSVBase):
-    id: int
-
-    class Config:
-        orm_mode = True
-
-class CSVProjectBase(BaseModel):
-    semester: Optional[str]
-    project: Optional[str]
-    project_github_url: Optional[str]
-    status: Optional[str]
-
-class CSVProjectCreate(CSVProjectBase):
-    pass
-
-class CSVProject(CSVProjectBase):
-    id: int
-
-    class Config:
-        orm_mode = True
+    id = Column(Integer, primary_key=True)
+    semester = Column(Text)
+    project = Column(Text)
+    project_github_url = Column(Text)
+    status = Column(Text)

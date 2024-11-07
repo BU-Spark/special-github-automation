@@ -13,6 +13,7 @@ psycopg2-binary = "*"
 python-multipart = "*"
 pandas = "*"
 aiocache = {extras = ["redis", "memcached"], version = "*"}
+slack-sdk = "*"
 
 [dev-packages]
 

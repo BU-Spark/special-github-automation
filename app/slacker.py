@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Slacker:
-    def __init__(self, token: str = None):
+    def __init__(self, token: str = ""):
         self.token = token
         if not self.token: raise ValueError("NO TOKEN PROVIDED")
         self.client = WebClient(token=self.token)
@@ -24,7 +24,7 @@ class Slacker:
                 print(f"User with email '{email}' not found.")
             else:
                 print(f"Error fetching user '{email}': {e.response['error']}")
-            return None
+            return ""
 
     def create_channel(self, channel_name: str, is_private: bool = False) -> str:
         try:
@@ -42,7 +42,7 @@ class Slacker:
                 return existing_channel
             else:
                 print(f"Failed to create channel '{channel_name}': {e.response['error']}")
-                return None
+                return ""
 
     def get_channel_id(self, channel_name: str) -> str:
         try:
@@ -53,10 +53,10 @@ class Slacker:
                     print(f"Found existing channel '{channel_name}' with ID: {channel['id']}")
                     return channel['id']
             print(f"Channel '{channel_name}' not found.")
-            return None
+            return ""
         except SlackApiError as e:
             print(f"Error fetching channels: {e.response['error']}")
-            return None
+            return ""
 
     def invite_users_to_channel(self, channel_id: str, user_ids: list, retry_count: int = 0):
         MAX_RETRIES = 5
@@ -119,8 +119,8 @@ class Slacker:
 
 
 if __name__ == "__main__":
-    slacker =   Slacker(token=os.getenv('SLACK_BOT_TOKEN'))
+    slacker = Slacker(token=os.getenv('SLACK_BOT_TOKEN') or "")
     channels_dict = {
-        'x4': ["x   @bu.edu"],
+        'x4': ["x@bu.edu"],
     }
     created_channels = slacker.create_channels_and_add_users(channels_dict, is_private=False)

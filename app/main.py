@@ -5,32 +5,29 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import pandas as pd
-import github_rest as gh
 import github as git
 import database as db
 import middleware as middleware
 import os
 import aiocache
 from dotenv import load_dotenv
-from aiocache import Cache
+from aiocache import Cache, BaseCache
 from aiocache.serializers import JsonSerializer
 from aiocache.decorators import cached
+from typing import Literal, cast
 
 # =========================================== app setup ===========================================
 
 # env
 load_dotenv()
-TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT')
-SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT')
+TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT') or "-"
+SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT') or "-"
 
 # app
 app = FastAPI()
 
-#automation = gh.Automation(TEST_GITHUB_PAT, 'spark-tests')
-#github = git.Github(TEST_GITHUB_PAT, 'spark-tests')
-
-automation = gh.Automation(SPARK_GITHUB_PAT, 'BU-Spark')
-github = git.Github(SPARK_GITHUB_PAT, 'BU-Spark')
+github = git.Github(TEST_GITHUB_PAT, 'spark-tests')
+# github = git.Github(SPARK_GITHUB_PAT, 'BU-Spark')
 
 aiocache.caches.set_config({
     'default': {
@@ -55,8 +52,8 @@ app.add_middleware(middleware.BasicAuthMiddleware,
 # ========================================= functionality =========================================
 
 async def deletecache():
-    cache = aiocache.caches.get('default') 
-    await cache.clear()
+    cache: object = aiocache.caches.get('default')
+    await cast(BaseCache, cache).clear()
 
 # root route
 @app.get("/")
@@ -74,7 +71,7 @@ async def authenticate(): return {"status": "authenticated"}
 @app.post("/refresh")
 async def refresh(): 
     cache = aiocache.caches.get('default') 
-    await cache.clear()
+    await cast(BaseCache, cache).clear()
     return {"status": "cache cleared"}
     
 # route called re-invite expired collaborators that re-invites expired collaborators based on a cron job
@@ -158,12 +155,14 @@ async def set_projects(request: Request):
     
     results: list = []
     projects: list[tuple[str, str]] = data["projects"]
-    action: str = data["action"]
+    action = data["action"]
     
-    if action not in ['push', 'pull']: return {"status": "failed", "error": "action must be 'push' or 'pull'"}
+    if action not in ['push', 'pull']:
+        return {"status": "failed", "error": "action must be 'push' or 'pull'"}
     
     try:
         for project in projects:
+            project_name = ""
             try:
                 project_name = project[0]
                 repo_url = project[1]
@@ -186,17 +185,18 @@ async def set_projects(request: Request):
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/git/set_projects")
-async def set_projects(request: Request):
+async def set_git_projects(request: Request):
     data = await request.json()
     
     results: list = []
     projects: list[tuple[str, str]] = data["projects"]
-    action: str = data["action"]
+    action: Literal['pull', 'triage', 'push', 'maintain', 'admin'] = data["action"]
     
     if action not in ['push', 'pull']: return {"status": "failed", "error": "action must be 'push' or 'pull'"}
     
     try:
         for project in projects:
+            project_name = ""
             try:
                 project_name = project[0]
                 repo_url = project[1]

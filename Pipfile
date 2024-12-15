@@ -14,6 +14,9 @@ python-multipart = "*"
 pandas = "*"
 aiocache = {extras = ["redis", "memcached"], version = "*"}
 slack-sdk = "*"
+sqlmodel = "*"
+pyright = "*"
+mypy = "*"
 
 [dev-packages]
 

@@ -166,8 +166,9 @@ class Github:
         
         if invitations_response.status_code == 200:
             if check_expired:
-                return {invited_collaborators['invitee']['login'] if invited_collaborators["expired"] else None
-                                        for invited_collaborators in invitations_response.json()} - {None}
+                return {invited_collaborators['invitee']['login']
+                        for invited_collaborators in invitations_response.json()
+                        if invited_collaborators["expired"]}
             else:
                 return {invitation['invitee']['login'] for invitation in invitations_response.json()}
         elif invitations_response.status_code == 404:
@@ -326,11 +327,11 @@ class Github:
         except Exception as e:
             return [(500, str(e))]
 
-    def get_all_repos(self) -> list[str]:
+    def get_all_repos(self) -> list[tuple[str, str]]:
         """
         Retrieves a list of all repositories in the organization.
         
-        Returns: list[str]: A list of all repositories in the organization.
+        Returns: list[tuple[str, str]]: A list of all repositories in the organization.
         """
         
         try:

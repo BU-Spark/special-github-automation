@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 # env
 load_dotenv()
 POSTGRES_URL = os.getenv('POSTGRES_URL')
-TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT')
-SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT')
+TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT') or "-"
+SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT') or "-"
 
 # app
 github = git.Github(SPARK_GITHUB_PAT, 'BU-Spark')

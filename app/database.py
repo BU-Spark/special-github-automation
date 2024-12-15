@@ -637,8 +637,8 @@ def change_users_project_status(project_name: str, user_github: str, status: sta
 if __name__ == "__main__":
     # for table in ['user', 'project', 'semester', 'user_project', 'csv']:
     #     dump(table)
-    ingest()
-    # projects()
+    #ingest()
+    print(len(projects()))
     # information()
     # get_users_in_project('Byte')
     # print(process())

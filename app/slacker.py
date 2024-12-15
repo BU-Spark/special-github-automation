@@ -121,6 +121,6 @@ class Slacker:
 if __name__ == "__main__":
     slacker =   Slacker(token=os.getenv('SLACK_BOT_TOKEN'))
     channels_dict = {
-        'x4': ["x@bu.edu"],
+        'x4': ["x   @bu.edu"],
     }
     created_channels = slacker.create_channels_and_add_users(channels_dict, is_private=False)

@@ -671,8 +671,8 @@ class Automation:
 
 def test():
     load_dotenv()
-    GITHUB_PAT = os.getenv('GITHUB_PAT')
-    automation = Automation(GITHUB_PAT, 'spark-tests')
+    SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT')
+    automation = Automation(SPARK_GITHUB_PAT, 'BU-Spark')
     print(automation.GITHUB_PAT)
     
     #inital_ssh_url = automation.get_repository_ssh_url('initial')
@@ -688,10 +688,10 @@ def test():
     #print("--")
     #print(invited_to_byte)
     #print(automation.remove_or_revoke_user(byte_ssh_url, ''))
-    #invited = automation.reinvite_all_expired_users_to_repos()
-    #print(invited)
+    invited = automation.reinvite_all_expired_users_to_repos()
+    print(invited)
     
-    automation.set_all_repos_users_read_only()
+    #automation.set_all_repos_users_read_only()
     
 if __name__ == "__main__":
     test()

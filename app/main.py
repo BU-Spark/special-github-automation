@@ -81,8 +81,8 @@ async def refresh():
 @app.post("/reinvite_expired_collaborators")
 async def reinvite_expired_collaborators(request: Request):
     try:
-        r = automation.reinvite_all_expired_users_to_repos()
-        print(r)
+        r = [(project["github_url"], github.reinvite_expired_users_on_repo(project["github_url"])) 
+            for project in db.projects()]
         return {"status": r}
     except Exception as e: return {"status": "failed", "error": str(e)}
     

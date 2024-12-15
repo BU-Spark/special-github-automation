@@ -236,8 +236,7 @@ class Github:
             return results
         except Exception as e:
             return [(500, str(e))]             
-                                                    
-        
+                                                
     def change_user_permission_on_repo(self, repo_url: str, user: str, permission: perms) -> tuple[int, str]:
         """
         Changes the permission level of a user on a GitHub repository.
@@ -349,7 +348,8 @@ class Github:
             return []
 
 if __name__ == "__main__":
-    github = Github(GITHUB_PAT, "spark-tests")
+    #github = Github(GITHUB_PAT, "spark-tests")
     #print(github.change_user_permission_on_repo("https://github.com/spark-tests/initial", "mochiakku", "push"))
     #print(github.change_all_user_permission_on_repo("https://github.com/spark-tests/initial", "push"))
-    print(github.get_all_repos())
+    #print(github.get_all_repos())
+    print()

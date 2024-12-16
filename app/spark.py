@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 from pandas import DataFrame
-import github as git
+from github import Github
 
 class Spark:
     
@@ -16,10 +16,10 @@ class Spark:
     # SQLAlchemy functionality
     # ======================================================================================================================
     
-    def __init__(self, URL: str, slack_token: str, git: git.Github):
+    def __init__(self, URL: str, slacker: Slacker, git: Github):
         self.URL = URL
         self.engine = create_engine(self.URL, echo=False)
-        self.slacker = Slacker(slack_token)
+        self.slacker = slacker
         self.git = git
         
     def s(self):
@@ -123,8 +123,7 @@ class Spark:
                 session.add(project)
                 
                 if row.generate_github:
-                    # generate github
-                    pass
+                    self.git.create_repo(row.project_tag, private=True)
                 if row.generate_slack:
                     channel_name = row.project_tag
                     channel_id = self.slacker.create_channel(channel_name=channel_name, is_private=False)
@@ -136,8 +135,10 @@ if __name__ == "__main__":
     TEST_SLACK_TOKEN = os.getenv("TEST_SLACK_BOT_TOKEN") or ""
     TEST_GITHUB_ORG = "auto-spark"
     TEST_GITHUB_TOKEN = os.getenv("TEST_GITHUB_PAT") or ""
-    github = git.Github(TEST_GITHUB_TOKEN, TEST_GITHUB_ORG)
-    spark = Spark(TEST_POSTGRES, TEST_SLACK_TOKEN, github)
+    
+    github = Github(TEST_GITHUB_TOKEN, TEST_GITHUB_ORG)
+    slacker = Slacker(TEST_SLACK_TOKEN)
+    spark = Spark(TEST_POSTGRES, slacker, github)
     #df = pd.read_csv("./ingestprojects.csv")
     #spark.ingest_project_csv(df)
     #spark.process_ingest_project_csv()

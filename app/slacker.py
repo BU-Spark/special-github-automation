@@ -7,8 +7,6 @@ from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
 import log
 
-load_dotenv()
-
 class Slacker:
     def __init__(self, token: str):
         self.token = token
@@ -145,10 +143,13 @@ class Slacker:
             self.log.error(f"failed to create channels and add users: {e}")
             raise e
 
-
 if __name__ == "__main__":
+    load_dotenv()
+    
     slacker = Slacker(token=os.getenv('SLACK_BOT_TOKEN') or "")
     channels_dict = {
-        'x4': ["x@bu.edu"],
+        'channel1': ["x@bu.edu"],
+        'channel2': ["y@bu.edu"],
+        'channel3': ["z@bu.edu"]
     }
     created_channels = slacker.create_channels_and_add_users(channels_dict, is_private=False)

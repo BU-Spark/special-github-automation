@@ -7,6 +7,7 @@ from typing import Literal, Optional
 import requests
 import csv
 import os
+import log
 
 # ==========================================================================================================================
 # github
@@ -26,7 +27,9 @@ class Github:
             'Authorization': f'Bearer {GITHUB_PAT}',
             'X-GitHub-Api-Version': '2022-11-28'
         }
-        print(f"Github initialized with PAT: {GITHUB_PAT} and {ORG_NAME}")
+        self.log = log.SparkLogger("GITHUB", output=True, persist=True)
+        
+        self.log.warning(f"Github initialized with PAT: {GITHUB_PAT[:20]}... and ORG: {ORG_NAME}")
         
     def extract_user_repo_from_ssh_url(self, ssh_url: str) -> tuple[str, str]:
         """
@@ -375,14 +378,19 @@ class Github:
                 timeout=10
             )
             if response.status_code == 201:
+                self.log.info(f"Successfully created repository {repo_name}")
                 return 201, f"Successfully created repository {repo_name}"
             else:
+                self.log.error(f"Failed to create repository {repo_name}: {response.json()}")
                 return response.status_code, response.json()
         except Exception as e:
+            self.log.error(f"Failed to create repository {repo_name}: {str(e)}")
             return 500, str(e)
     
 if __name__ == "__main__":
-    #github = Github(GITHUB_PAT, "spark-tests")
+    TEST_GITHUB_PAT = os.getenv("TEST_GITHUB_PAT") or ""
+    github = Github(TEST_GITHUB_PAT, "auto-spark")
+    github.create_repo("test", private=False)
     #print(github.change_user_permission_on_repo("https://github.com/spark-tests/initial", "mochiakku", "push"))
     #print(github.change_all_user_permission_on_repo("https://github.com/spark-tests/initial", "push"))
     #print(github.get_all_repos())

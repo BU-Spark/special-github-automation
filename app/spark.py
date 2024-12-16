@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 from pandas import DataFrame
+import github as git
 
 class Spark:
     
@@ -15,10 +16,11 @@ class Spark:
     # SQLAlchemy functionality
     # ======================================================================================================================
     
-    def __init__(self, URL: str, token: str):
+    def __init__(self, URL: str, slack_token: str, git: git.Github):
         self.URL = URL
         self.engine = create_engine(self.URL, echo=False)
-        self.slacker = Slacker(token)
+        self.slacker = Slacker(slack_token)
+        self.git = git
         
     def s(self):
         return sessionmaker(bind=self.engine)()
@@ -132,7 +134,10 @@ class Spark:
 if __name__ == "__main__":
     TEST_POSTGRES = os.getenv("TEST_POSTGRES_URL") or ""
     TEST_SLACK_TOKEN = os.getenv("TEST_SLACK_BOT_TOKEN") or ""
-    spark = Spark(TEST_POSTGRES, TEST_SLACK_TOKEN)
+    TEST_GITHUB_ORG = "auto-spark"
+    TEST_GITHUB_TOKEN = os.getenv("TEST_GITHUB_PAT") or ""
+    github = git.Github(TEST_GITHUB_TOKEN, TEST_GITHUB_ORG)
+    spark = Spark(TEST_POSTGRES, TEST_SLACK_TOKEN, github)
     #df = pd.read_csv("./ingestprojects.csv")
     #spark.ingest_project_csv(df)
-    spark.process_ingest_project_csv()
+    #spark.process_ingest_project_csv()

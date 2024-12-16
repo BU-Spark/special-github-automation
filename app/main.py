@@ -155,7 +155,7 @@ async def set_projects(request: Request):
     
     results: list = []
     projects: list[tuple[str, str]] = data["projects"]
-    action = data["action"]
+    action: Literal["push", "pull"] = data["action"]
     
     if action not in ['push', 'pull']:
         return {"status": "failed", "error": "action must be 'push' or 'pull'"}
@@ -175,7 +175,10 @@ async def set_projects(request: Request):
                         continue
                     else:
                         db_status, db_msg = db.change_users_project_status(project_name, github_username, action)
-                        results.append(f"PROCESSED: {project_name} - {github_username} -> gh {gh_status} {gh_msg} | db {db_status} {db_msg}")
+                        results.append(
+                            f"PROCESSED: {project_name} - {github_username} 
+                            -> gh {gh_status} {gh_msg} | db {db_status} {db_msg}"
+                        )
                     
             except Exception as e: 
                 print(e)

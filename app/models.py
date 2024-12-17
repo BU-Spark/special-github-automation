@@ -173,3 +173,28 @@ class IngestProjectCSV(Base):
             f"slack_channel='{self.slack_channel}', generate_github={self.generate_github}, "
             f"generate_slack={self.generate_slack}, outcome={self.outcome}, result='{self.result}')>"
         )
+        
+class IngestUserProjectCSV(Base):
+    __tablename__ = "ingest_user_project_csv"
+    
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False,
+        #server_default=func.nextval('ingest_user_project_csv_id_seq')
+    )
+    project_name: Mapped[str] = mapped_column(Text, nullable=False)
+    project_tag: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    first_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    buid: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
+    github_username: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
+    outcome: Mapped[Optional[Outcome]] = mapped_column(Enum_(Outcome), nullable=True)
+    result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    def __repr__(self) -> str:
+        return (
+            f"<IngestUserProjectCSV(id={self.id}, project_name='{self.project_name}', "
+            f"project_tag='{self.project_tag}', first_name='{self.first_name}', "
+            f"last_name='{self.last_name}', email='{self.email}', buid='{self.buid}', "
+            f"github_username='{self.github_username}', outcome={self.outcome}, result='{self.result}')>"
+        )

@@ -102,6 +102,7 @@ class Project(Base):
         Integer, primary_key=True, nullable=False,
         #server_default=func.nextval('project_project_id_seq')
     )
+    course: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     project_name: Mapped[str] = mapped_column(Text, nullable=False)
     project_tag: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     semester_id: Mapped[int] = mapped_column(ForeignKey('semester.semester_id', ondelete='RESTRICT'), nullable=False)
@@ -153,6 +154,7 @@ class IngestProjectCSV(Base):
         Integer, primary_key=True, nullable=False,
         #server_default=func.nextval('ingest_project_csv_id_seq')
     )
+    course: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     project_name: Mapped[str] = mapped_column(Text, nullable=False)
     project_tag: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     semester: Mapped[str] = mapped_column(Text, nullable=False)
@@ -165,9 +167,9 @@ class IngestProjectCSV(Base):
     
     def __repr__(self) -> str:
         return (
-            f"<IngestProjectCSV(id={self.id}, project_name='{self.project_name}', "
-            f"project_tag='{self.project_tag}', semester='{self.semester}', "
-            f"github_url='{self.github_url}', slack_channel='{self.slack_channel}', "
-            f"generate_github={self.generate_github}, generate_slack={self.generate_slack}, "
-            f"outcome={self.outcome}, result='{self.result}')>"
+            f"<IngestProjectCSV(id={self.id}, course='{self.course}', "
+            f"project_name='{self.project_name}', project_tag='{self.project_tag}', "
+            f"semester='{self.semester}', github_url='{self.github_url}', "
+            f"slack_channel='{self.slack_channel}', generate_github={self.generate_github}, "
+            f"generate_slack={self.generate_slack}, outcome={self.outcome}, result='{self.result}')>"
         )

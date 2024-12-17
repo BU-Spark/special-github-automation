@@ -87,8 +87,9 @@ class Spark:
         """ingest project csv"""
         
         colmap: dict[str, str] = {
+            "Course": "course",
             "Project Name": "project_name",
-            "Project Tag": "project_tag",
+            "Project Identifier": "project_tag",
             "Semester": "semester",
             "GitHub Repository": "github_url",
             "Slack": "slack_channel",
@@ -157,6 +158,7 @@ class Spark:
                     row.result = "all systems operational."
                 
                 project_data = _Project(
+                    course=None,
                     project_name=row.project_name,
                     project_tag=row.project_tag,
                     semester_id=semester.semester_id,

@@ -39,6 +39,12 @@ class Status(enum.Enum):
     pull = 'pull'
     push = 'push'
 
+class Outcome(enum.Enum):
+    success = 'success'
+    failure = 'failure'
+    warning = 'warning'
+    unkown = 'unkown'
+
 class Semester(Base):
     __tablename__ = 'semester'
 
@@ -60,6 +66,10 @@ class Semester(Base):
             f"semester_name='{self.semester_name}', "
             f"year={self.year}, season={self.season.value})>"
         )
+        
+    def short(self):
+        lookup ={'spring': 'sp','summer': 'su','fall': 'fa','winter': 'wi'}
+        return f"{lookup[self.season.value]}-{str(self.year)[-2:]}"
 
 class User(Base):
     __tablename__ = 'user'
@@ -150,11 +160,14 @@ class IngestProjectCSV(Base):
     slack_channel: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
     generate_github: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True, default=False)
     generate_slack: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True, default=False)
+    outcome: Mapped[Optional[Outcome]] = mapped_column(Enum_(Outcome), nullable=True)
+    result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     def __repr__(self) -> str:
         return (
             f"<IngestProjectCSV(id={self.id}, project_name='{self.project_name}', "
             f"project_tag='{self.project_tag}', semester='{self.semester}', "
             f"github_url='{self.github_url}', slack_channel='{self.slack_channel}', "
-            f"generate_github={self.generate_github}, generate_slack={self.generate_slack})>"
+            f"generate_github={self.generate_github}, generate_slack={self.generate_slack}, "
+            f"outcome={self.outcome}, result='{self.result}')>"
         )

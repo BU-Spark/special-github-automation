@@ -1,9 +1,12 @@
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
-SERVICE_ACCOUNT_FILE = 'path/to/your-service-account.json'
+SERVICE_ACCOUNT_FILE = 'app/auto-spark-key.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
-credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+DELEGATED_USER = 'autospark@bu.edu'
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES
+).with_subject(DELEGATED_USER)
 
 class Drive:
     
@@ -24,3 +27,9 @@ class Drive:
             return permission.get('id')
         except Exception as e:
             return str(e)
+
+if __name__ == '__main__':
+    drive = Drive()
+    file_url = 'https://drive.google.com/drive/u/0/folders/1q2H4VT_tHahAZTK8vsmLwq9hjwbeDTJJ'
+    email = 'raquelgr@bu.edu'
+    print(drive.share(file_url, email))

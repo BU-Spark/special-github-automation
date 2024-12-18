@@ -1,3 +1,4 @@
+auto-spark-key.json
 *.csv
 !*.example.csv
 *.txt

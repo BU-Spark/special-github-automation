@@ -112,6 +112,7 @@ class Project(Base):
     semester_id: Mapped[int] = mapped_column(ForeignKey('semester.semester_id', ondelete='RESTRICT'), nullable=False)
     github_url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     slack_channel: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
+    drive_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     # Bidirectional Relationship to Semester
@@ -137,8 +138,10 @@ class UserProject(Base):
         mapped_column(ForeignKey('user.user_id'), primary_key=True, nullable=False)
     status_github: Mapped[Optional[Status]] = mapped_column(Enum_(Status), nullable=True)
     status_slack: Mapped[Optional[Status]] = mapped_column(Enum_(Status), nullable=True)
+    status_drive: Mapped[Optional[Status]] = mapped_column(Enum_(Status), nullable=True)
     github_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     slack_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    drive_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True),nullable=True, server_default=func.now())
 
     # Relationships to User and Project
@@ -167,6 +170,7 @@ class IngestProjectCSV(Base):
     semester: Mapped[str] = mapped_column(Text, nullable=False)
     github_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
     slack_channel: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
+    drive_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     generate_github: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
     generate_slack: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
     outcome: Mapped[Optional[Outcome]] = mapped_column(Enum_(Outcome), nullable=True)

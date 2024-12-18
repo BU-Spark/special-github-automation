@@ -10,6 +10,7 @@ class _Project(BaseModel):
     semester_id: int
     github_url: str
     slack_channel: Optional[str]
+    drive_url: Optional[str]
     
 class _User(BaseModel):
     first_name: Optional[str]
@@ -23,6 +24,8 @@ class _UserProject(BaseModel):
     user_id: int
     status_github: Optional[Status]
     status_slack: Optional[Status]
+    status_drive: Optional[Status]
     github_result: Optional[str]
     slack_result: Optional[str]
+    drive_result: Optional[str]
     created_at: Optional[datetime]

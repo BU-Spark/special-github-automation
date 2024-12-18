@@ -95,6 +95,7 @@ class Spark:
             "Semester": "semester",
             "GitHub Repository": "github_url",
             "Slack": "slack_channel",
+            "Drive": "drive_url",
             "Generate GitHub": "generate_github",
             "Generate Slack": "generate_slack"
         }
@@ -162,8 +163,12 @@ class Spark:
                 
                 if row.generate_slack:
                     if not row.slack_channel:
+                        ####################################################################################################
+                        # CUSTOM SLACK CHANNEL NAME LOGIC GOES HERE
+                        ####################################################################################################
                         slack_channel_id = self.slacker.create_channel(row.project_tag)
-                        row.slack_channel = slack_channel_id
+                        slack_channel_name = self.slacker.get_channel_name(slack_channel_id)
+                        row.slack_channel = slack_channel_name
                         self.log.info(f"created slack channel {slack_channel_id} for project {row.project_tag}.")
                     else:
                         row.outcome = Outcome.warning
@@ -189,6 +194,7 @@ class Spark:
                     project_tag=row.project_tag,
                     semester_id=semester.semester_id,
                     github_url=row.github_url,
+                    drive_url=row.drive_url,
                     slack_channel=row.slack_channel
                 )
                 project = Project(**project_data.model_dump())
@@ -245,8 +251,10 @@ class Spark:
                     user_id=user.user_id,
                     status_github=Status.started,   
                     status_slack=Status.started,
+                    status_drive=Status.started,
                     github_result=None,
                     slack_result=None,
+                    drive_result=None,
                     created_at=None
                 )
                 user_project = UserProject(**user_project_data.model_dump())
@@ -389,8 +397,9 @@ class Spark:
                     session.commit()
                     continue
                 
+                slack_channel_id = self.slacker.get_channel_id(channel_name=project.slack_channel)
                 self.slacker.invite_users_to_channel(
-                    channel_id=project.slack_channel,
+                    channel_id=slack_channel_id,
                     user_ids=slack_uid,
                     retries=3
                 )

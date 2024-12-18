@@ -81,6 +81,24 @@ class Slacker:
             self.log.error(f"failed to fetch channel ID for '{channel_name}': {e.response['error']}")
             raise e
 
+    def get_channel_name(self, channel_id: str) -> str:
+        """
+        Fetches the name of an existing channel with the given ID.
+        
+        Args: channel_id (str): The ID of the channel.
+        Returns: str: The name of the channel if found, otherwise an empty string.
+        Raises: SlackApiError: If the API call fails.
+        """
+        
+        try:
+            response = self.client.conversations_info(channel=channel_id)
+            channel_name = response['channel']['name']
+            self.log.info(f"fetched channel name '{channel_name}' for ID: {channel_id}")
+            return channel_name
+        except SlackApiError as e:
+            self.log.error(f"failed to fetch channel name for ID: {channel_id}: {e.response['error']}")
+            raise e
+
     def invite_users_to_channel(self, channel_id: str, user_ids: List[str] | str, retries: int = 0):
         """
         Invites users to a Slack channel.
@@ -147,9 +165,10 @@ if __name__ == "__main__":
     load_dotenv()
     
     slacker = Slacker(token=os.getenv('SLACK_BOT_TOKEN') or "")
-    channels_dict = {
+    """ channels_dict = {
         'channel1': ["x@bu.edu"],
         'channel2': ["y@bu.edu"],
         'channel3': ["z@bu.edu"]
     }
-    created_channels = slacker.create_channels_and_add_users(channels_dict, is_private=False)
+    created_channels = slacker.create_channels_and_add_users(channels_dict, is_private=False) """
+    print(slacker.get_channel_name("C085LBA78GJ"))

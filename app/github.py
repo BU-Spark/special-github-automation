@@ -1,12 +1,17 @@
-# =========================================== imports =============================================
+# ==========================================================================================================================
+# imports 
+# ==========================================================================================================================
 
 import json
 from typing import Literal, Optional
 import requests
 import csv
 import os
+import log
 
-# ============================================= Github ============================================
+# ==========================================================================================================================
+# github
+# ==========================================================================================================================
 
 class Github:
     GITHUB_PAT = None
@@ -22,7 +27,8 @@ class Github:
             'Authorization': f'Bearer {GITHUB_PAT}',
             'X-GitHub-Api-Version': '2022-11-28'
         }
-        print(f"Github initialized with PAT: {GITHUB_PAT} and {ORG_NAME}")
+        self.log = log.SparkLogger("GITHUB", output=True, persist=True)
+        self.log.info(f"Github initialized with PAT: {GITHUB_PAT[:20]}... and ORG: {ORG_NAME}")
         
     def extract_user_repo_from_ssh_url(self, ssh_url: str) -> tuple[str, str]:
         """
@@ -34,6 +40,7 @@ class Github:
         """
 
         if not ssh_url.startswith("git@github.com:"):
+            self.log.error(f"Invalid SSH URL format: {ssh_url}")
             raise ValueError("Invalid SSH URL format")
         try:
             ssh_url_parts = ssh_url.split(':')[-1].split('/')
@@ -41,6 +48,7 @@ class Github:
             repo_name = ssh_url_parts[1].split('.')[0]
             return username, repo_name
         except Exception as e:
+            self.log.error(f"Failed to extract username and repo name from SSH URL: {str(e)}")
             raise ValueError("Invalid SSH URL format")
         
     def check_user_exists(self, user: str) -> bool:
@@ -51,8 +59,7 @@ class Github:
         Returns: bool: True if the user exists, False otherwise.
         """
 
-        response = requests.get(
-            f'https://api.github.com/users/{user}', headers=self.HEADERS, timeout=2)
+        response = requests.get(f'https://api.github.com/users/{user}', headers=self.HEADERS, timeout=2)
         if response.status_code == 200: return True
         else: return False
     
@@ -64,6 +71,7 @@ class Github:
             repo_url (str): The URL of the GitHub repository.
             user (str): The username of the GitHub user.
         Returns: bool: True if the user is a collaborator, False otherwise.
+        Raises: Exception: If an error occurs during the API request.
         """
         
         ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
@@ -75,9 +83,7 @@ class Github:
                 headers=self.HEADERS,
                 timeout=2
             )
-            
-            if response.status_code == 204: return True
-            else: return False
+            return response.status_code == 204
         except Exception as e:
             raise Exception(f"Failed to check if user is a collaborator: {str(e)}")
     
@@ -90,17 +96,17 @@ class Github:
             user (str): The username of the GitHub user.
             permission ("pull" | "triage" | "push" | "maintain" | "admin"): The permission level for the user.
         Returns: Tuple[int, str]: A tuple containing the status code and message.
+        Raises: Exception: If an error occurs during the API request.
         """
         
         ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
-        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
-        exists = self.check_user_exists(user)
+        owner, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
         
-        if not exists: return 404, f"User {user} does not exist"
+        if not self.check_user_exists(user): return 404, f"User {user} does not exist"
         
         try:
             response = requests.put(
-                f'https://api.github.com/repos/{username}/{repo_name}/collaborators/{user}',
+                f'https://api.github.com/repos/{owner}/{repo_name}/collaborators/{user}',
                 headers=self.HEADERS,
                 json={'permission': permission},
                 timeout=2
@@ -111,6 +117,60 @@ class Github:
         except Exception as e:
             return 500, str(e)
     
+    def remove_user_from_repo(self, repo_url: str, user: str) -> tuple[int, str]:
+        """
+        Removes a GitHub user from a repository. If the user is a collaborator, it will remove
+        them directly. If they are currently invited (but not yet a collaborator), it will revoke
+        their invitation instead.
+
+        Args: 
+            repo_url (str): The URL of the GitHub repository.
+            user (str): The username of the GitHub user.
+        Returns: Tuple[int, str]: A tuple containing the status code and message.
+        Raises: Exception: If an error occurs during the API request.
+        """
+        
+        ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
+        owner, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        
+        if not self.check_user_exists(user): return 404, f"User {user} does not exist"
+
+        try:
+            response = requests.delete(
+                f'https://api.github.com/repos/{owner}/{repo_name}/collaborators/{user}',
+                headers=self.HEADERS,
+                timeout=2
+            )
+            if response.status_code == 204:
+                return 204, f"Successfully removed {user} from {repo_name} repository as a collaborator."
+
+            invitations_response = requests.get(
+                f'https://api.github.com/repos/{owner}/{repo_name}/invitations',
+                headers=self.HEADERS,
+                timeout=10
+            )
+            if invitations_response.status_code != 200:
+                return response.status_code, response.json()
+
+            invitations = invitations_response.json()
+            invitation = next((inv for inv in invitations if inv['invitee']['login'] == user), None)
+
+            if invitation:
+                revoke_response = requests.delete(
+                    f'https://api.github.com/repos/{owner}/{repo_name}/invitations/{invitation["id"]}',
+                    headers=self.HEADERS,
+                    timeout=2
+                )
+                if revoke_response.status_code == 204:
+                    return 204, f"Successfully revoked invitation for {user}."
+                else:
+                    return revoke_response.status_code, revoke_response.json()
+            else:
+                return response.status_code, response.json()
+
+        except Exception as e:
+            return 500, str(e)
+            
     def get_users_on_repo(self, repo_url: str) -> set[str]:
         """
         Retrieves a set of GitHub usernames who are collaborators on a given repository.
@@ -121,11 +181,11 @@ class Github:
         """
         
         ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
-        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        owner, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
 
         try:
             collaborators_response = requests.get(
-                f'https://api.github.com/repos/{username}/{repo_name}/collaborators',
+                f'https://api.github.com/repos/{owner}/{repo_name}/collaborators',
                 headers=self.HEADERS,
                 timeout=10
             )
@@ -139,7 +199,7 @@ class Github:
         elif collaborators_response.status_code == 403:
             raise Exception("Access to the repository is forbidden.")
         else:
-            raise Exception(f"Failed to fetch collaborators: {collaborators_response.json().get('message', 'Unknown error')}")
+            raise Exception(f"Failed: {collaborators_response.json().get('message', 'Unknown error')}")
     
     def get_users_invited_on_repo(self, repo_url: str, check_expired: bool = False ) -> set[str]:
         """
@@ -153,11 +213,11 @@ class Github:
         """
         
         ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
-        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        owner, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
         
         try:
             invitations_response = requests.get(
-                f'https://api.github.com/repos/{username}/{repo_name}/invitations',
+                f'https://api.github.com/repos/{owner}/{repo_name}/invitations',
                 headers=self.HEADERS,
                 timeout=10
             )
@@ -166,8 +226,9 @@ class Github:
         
         if invitations_response.status_code == 200:
             if check_expired:
-                return {invited_collaborators['invitee']['login'] if invited_collaborators["expired"] else None
-                                        for invited_collaborators in invitations_response.json()} - {None}
+                return {invited_collaborators['invitee']['login']
+                        for invited_collaborators in invitations_response.json()
+                        if invited_collaborators["expired"]}
             else:
                 return {invitation['invitee']['login'] for invitation in invitations_response.json()}
         elif invitations_response.status_code == 404:
@@ -175,7 +236,7 @@ class Github:
         elif invitations_response.status_code == 403:
             raise Exception("Access to the repository is forbidden.")
         else:
-            raise Exception(f"Failed to fetch invitations: {invitations_response.json().get('message', 'Unknown error')}")
+            raise Exception(f"Failed: {invitations_response.json().get('message', 'Unknown error')}")
         
     def revoke_user_invitation_on_repo(self, repo_url: str, user: str) -> tuple[int, str]:
         """
@@ -185,14 +246,15 @@ class Github:
             repo_url (str): The URL of the GitHub repository.
             user (str): The username of the GitHub user.
         Returns: Tuple[int, str]: A tuple containing the status code and message.
+        Raises: Exception: If an error occurs during the API request.
         """
         
         ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
-        username, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        owner, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
         
         try:
             invitations_response = requests.get(
-                f'https://api.github.com/repos/{username}/{repo_name}/invitations',
+                f'https://api.github.com/repos/{owner}/{repo_name}/invitations',
                 headers=self.HEADERS,
                 timeout=10
             )
@@ -203,7 +265,7 @@ class Github:
             invitation = next((inv for inv in invitations_response.json() if inv['invitee']['login'] == user), None)
             if invitation:
                 response = requests.delete(
-                    f'https://api.github.com/repos/{username}/{repo_name}/invitations/{invitation["id"]}',
+                    f'https://api.github.com/repos/{owner}/{repo_name}/invitations/{invitation["id"]}',
                     headers=self.HEADERS,
                     timeout=2
                 )
@@ -222,6 +284,7 @@ class Github:
         
         Args: repo_url (str): The HTTPS URL of the GitHub repository.
         Returns: list[tuple[int, str]]: A list of tuples containing the status code and message.
+        Raises: Exception: If an error occurs during the API request.
         """
         
         results = []
@@ -236,8 +299,7 @@ class Github:
             return results
         except Exception as e:
             return [(500, str(e))]             
-                                                    
-        
+                                                
     def change_user_permission_on_repo(self, repo_url: str, user: str, permission: perms) -> tuple[int, str]:
         """
         Changes the permission level of a user on a GitHub repository.
@@ -247,6 +309,7 @@ class Github:
             user (str): The username of the GitHub user.
             permission ("pull" | "triage" | "push" | "maintain" | "admin"): The new permission level for the user.
         Returns: Tuple[int, str]: A tuple containing the status code and message.
+        Raises: Exception: If an error occurs during the API
         """
         
         try:
@@ -274,7 +337,8 @@ class Github:
                 )
                 
                 if change_permission_response.status_code == 200 or change_permission_response.status_code == 204:
-                    return change_permission_response.status_code, f"Successfully changed {user}'s permission to {permission}"
+                    return change_permission_response.status_code, \
+                        f"Successfully changed {user}'s permission to {permission}"
                 else:
                     return change_permission_response.status_code, change_permission_response.json()
                 
@@ -299,7 +363,8 @@ class Github:
                     else:
                         return update_invitation_response.status_code, update_invitation_response.json()
                 else:
-                    return collaborator_response.status_code, f'User {user} is not a collaborator or invited on the repository'
+                    return collaborator_response.status_code, \
+                        f'User {user} is not a collaborator or invited on the repository'
 
         except Exception as e:
             return 500, str(e)
@@ -312,6 +377,7 @@ class Github:
             repo_url (str): The HTTPS URL of the GitHub repository.
             permission ("pull" | "triage" | "push" | "maintain" | "admin"): The new permission level for the users.
         Returns: Tuple[int, str]: A tuple containing the status code and message.
+        Raises: Exception: If an error occurs during the API request.
         """
         
         results = []
@@ -327,11 +393,12 @@ class Github:
         except Exception as e:
             return [(500, str(e))]
 
-    def get_all_repos(self) -> list[str]:
+    def get_all_repos(self) -> list[tuple[str, str]]:
         """
         Retrieves a list of all repositories in the organization.
         
-        Returns: list[str]: A list of all repositories in the organization.
+        Returns: list[tuple[str, str]]: A list of all repositories in the organization.
+        Raises: Exception: If an error occurs during the API request.
         """
         
         try:
@@ -340,16 +407,42 @@ class Github:
                 headers=self.HEADERS,
                 timeout=10
             )
-            #print(response.json())
             if response.status_code == 200:
                 return [(repo['name'], repo['ssh_url']) for repo in response.json()]
             else:
                 return []
         except Exception as e:
-            return []
+            raise Exception(f"Failed to fetch repositories: {str(e)}")
 
+    def create_repo(self, repo_name: str, private: bool = False) -> tuple[int, str]:
+        """
+        Creates a new repository in the organization.
+        
+        Args: 
+            repo_name (str): The name of the new repository.
+            private (bool): If True, the repository will be private.
+        Returns: Tuple[int, str]: A tuple containing the status code and message.
+        Raises: Exception: If an error occurs during the API request.
+        """
+        
+        try:
+            response = requests.post(
+                f'https://api.github.com/orgs/{self.ORG_NAME}/repos',
+                headers=self.HEADERS,
+                json={'name': repo_name, 'private': private},
+                timeout=10
+            )
+            if response.status_code == 201:
+                self.log.info(f"Successfully created repository {repo_name}")
+                return 201, f"Successfully created repository {repo_name}"
+            else:
+                self.log.error(f"Failed to create repository {repo_name}: {response.json()}")
+                return response.status_code, response.json()
+        except Exception as e:
+            self.log.error(f"Exception Failed to create repository {repo_name}: {str(e)}")
+            return 500, str(e)
+    
 if __name__ == "__main__":
-    github = Github(GITHUB_PAT, "spark-tests")
-    #print(github.change_user_permission_on_repo("https://github.com/spark-tests/initial", "mochiakku", "push"))
-    #print(github.change_all_user_permission_on_repo("https://github.com/spark-tests/initial", "push"))
-    print(github.get_all_repos())
+    TEST_GITHUB_PAT = os.getenv("TEST_GITHUB_PAT") or ""
+    github = Github(TEST_GITHUB_PAT, "auto-spark")
+    print()

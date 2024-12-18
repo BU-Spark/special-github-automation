@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 # env
 load_dotenv()
 POSTGRES_URL = os.getenv('POSTGRES_URL')
-TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT')
-SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT')
+TEST_GITHUB_PAT = os.getenv('TEST_GITHUB_PAT') or "-"
+SPARK_GITHUB_PAT = os.getenv('SPARK_GITHUB_PAT') or "-"
 
 # app
 github = git.Github(SPARK_GITHUB_PAT, 'BU-Spark')
@@ -637,8 +637,8 @@ def change_users_project_status(project_name: str, user_github: str, status: sta
 if __name__ == "__main__":
     # for table in ['user', 'project', 'semester', 'user_project', 'csv']:
     #     dump(table)
-    ingest()
-    # projects()
+    #ingest()
+    print(len(projects()))
     # information()
     # get_users_in_project('Byte')
     # print(process())

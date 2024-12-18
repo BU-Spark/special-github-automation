@@ -17,6 +17,7 @@ slack-sdk = "*"
 sqlmodel = "*"
 pyright = "*"
 mypy = "*"
+alembic = "*"
 
 [dev-packages]
 

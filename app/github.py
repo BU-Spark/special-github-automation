@@ -28,8 +28,7 @@ class Github:
             'X-GitHub-Api-Version': '2022-11-28'
         }
         self.log = log.SparkLogger("GITHUB", output=True, persist=True)
-        
-        self.log.warning(f"Github initialized with PAT: {GITHUB_PAT[:20]}... and ORG: {ORG_NAME}")
+        self.log.info(f"Github initialized with PAT: {GITHUB_PAT[:20]}... and ORG: {ORG_NAME}")
         
     def extract_user_repo_from_ssh_url(self, ssh_url: str) -> tuple[str, str]:
         """
@@ -41,6 +40,7 @@ class Github:
         """
 
         if not ssh_url.startswith("git@github.com:"):
+            self.log.error(f"Invalid SSH URL format: {ssh_url}")
             raise ValueError("Invalid SSH URL format")
         try:
             ssh_url_parts = ssh_url.split(':')[-1].split('/')
@@ -48,6 +48,7 @@ class Github:
             repo_name = ssh_url_parts[1].split('.')[0]
             return username, repo_name
         except Exception as e:
+            self.log.error(f"Failed to extract username and repo name from SSH URL: {str(e)}")
             raise ValueError("Invalid SSH URL format")
         
     def check_user_exists(self, user: str) -> bool:
@@ -116,6 +117,60 @@ class Github:
         except Exception as e:
             return 500, str(e)
     
+    def remove_user_from_repo(self, repo_url: str, user: str) -> tuple[int, str]:
+        """
+        Removes a GitHub user from a repository. If the user is a collaborator, it will remove
+        them directly. If they are currently invited (but not yet a collaborator), it will revoke
+        their invitation instead.
+
+        Args: 
+            repo_url (str): The URL of the GitHub repository.
+            user (str): The username of the GitHub user.
+        Returns: Tuple[int, str]: A tuple containing the status code and message.
+        Raises: Exception: If an error occurs during the API request.
+        """
+        
+        ssh_url = repo_url.replace("https://github.com/", "git@github.com:")
+        owner, repo_name = self.extract_user_repo_from_ssh_url(ssh_url)
+        
+        if not self.check_user_exists(user): return 404, f"User {user} does not exist"
+
+        try:
+            response = requests.delete(
+                f'https://api.github.com/repos/{owner}/{repo_name}/collaborators/{user}',
+                headers=self.HEADERS,
+                timeout=2
+            )
+            if response.status_code == 204:
+                return 204, f"Successfully removed {user} from {repo_name} repository as a collaborator."
+
+            invitations_response = requests.get(
+                f'https://api.github.com/repos/{owner}/{repo_name}/invitations',
+                headers=self.HEADERS,
+                timeout=10
+            )
+            if invitations_response.status_code != 200:
+                return response.status_code, response.json()
+
+            invitations = invitations_response.json()
+            invitation = next((inv for inv in invitations if inv['invitee']['login'] == user), None)
+
+            if invitation:
+                revoke_response = requests.delete(
+                    f'https://api.github.com/repos/{owner}/{repo_name}/invitations/{invitation["id"]}',
+                    headers=self.HEADERS,
+                    timeout=2
+                )
+                if revoke_response.status_code == 204:
+                    return 204, f"Successfully revoked invitation for {user}."
+                else:
+                    return revoke_response.status_code, revoke_response.json()
+            else:
+                return response.status_code, response.json()
+
+        except Exception as e:
+            return 500, str(e)
+            
     def get_users_on_repo(self, repo_url: str) -> set[str]:
         """
         Retrieves a set of GitHub usernames who are collaborators on a given repository.
@@ -384,14 +439,10 @@ class Github:
                 self.log.error(f"Failed to create repository {repo_name}: {response.json()}")
                 return response.status_code, response.json()
         except Exception as e:
-            self.log.error(f"Failed to create repository {repo_name}: {str(e)}")
+            self.log.error(f"Exception Failed to create repository {repo_name}: {str(e)}")
             return 500, str(e)
     
 if __name__ == "__main__":
     TEST_GITHUB_PAT = os.getenv("TEST_GITHUB_PAT") or ""
     github = Github(TEST_GITHUB_PAT, "auto-spark")
-    github.create_repo("test", private=False)
-    #print(github.change_user_permission_on_repo("https://github.com/spark-tests/initial", "mochiakku", "push"))
-    #print(github.change_all_user_permission_on_repo("https://github.com/spark-tests/initial", "push"))
-    #print(github.get_all_repos())
     print()

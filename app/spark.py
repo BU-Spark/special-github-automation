@@ -443,5 +443,5 @@ if __name__ == "__main__":
     # spark.process_ingest_user_project_csv()
     
     # spark.automate_github(tags=[], start_state=Status.pull, end_state=Status.push)
-    
-    spark.automate_slack(tags=[])
+
+    # spark.automate_slack(tags=[])

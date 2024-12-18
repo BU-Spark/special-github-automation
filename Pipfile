@@ -18,6 +18,8 @@ sqlmodel = "*"
 pyright = "*"
 mypy = "*"
 alembic = "*"
+google-api-python-client = "*"
+install = "*"
 
 [dev-packages]
 

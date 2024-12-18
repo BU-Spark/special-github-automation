@@ -12,6 +12,7 @@ import pandas as pd
 from pandas import DataFrame
 from github import Github
 import log
+from drive import Drive
 
 class Spark:
     
@@ -19,11 +20,12 @@ class Spark:
     # SQLAlchemy functionality
     # ======================================================================================================================
     
-    def __init__(self, PGURL: str, org: str, slacker: Slacker, git: Github):
+    def __init__(self, PGURL: str, org: str, slacker: Slacker, git: Github, drive: Drive):
         self.PGURL = PGURL
         self.org = org
         self.engine = create_engine(self.PGURL, echo=False)
         self.slacker = slacker
+        self.drive = drive
         self.git = git
         self.log = log.SparkLogger(name="Spark", output=True, persist=True)
         
@@ -428,6 +430,50 @@ class Spark:
                         f"automation failed {user_project.user.email} on {user_project.project.project_tag}: {msg}"
                     )
     
+    def automate_drive(self, tags: List[str] = []):
+        """Automates sharing google drive folders."""
+        
+        session = self.s()
+        
+        user_projects = session.query(UserProject).join(Project).filter(
+            Project.project_tag.in_(tags or [up.project.project_tag for up in session.query(UserProject).all()]),
+            UserProject.status_drive == Status.started
+        ).all()
+        
+        for user_project in user_projects:
+            try:
+                project = user_project.project
+                user = user_project.user
+                self.log.info(f"automating drive for {user.email} on {project.project_tag}...")
+                
+                if not project.drive_url:
+                    user_project.status_drive = Status.failed
+                    user_project.drive_result = "failure: drive url does not exist."
+                    self.log.error(f"failed as drive url does not exist for {project.project_tag}.")
+                    session.commit()
+                    continue
+                    
+                ############################################################################################################
+                # CUSTOM GOOGLE DRIVE SHARING LOGIC GOES HERE
+                ############################################################################################################
+                
+                self.drive.share(project.drive_url, user.email)
+                
+                user_project.status_drive = Status.push
+                user_project.drive_result = "all systems operational."
+                self.log.info(f"automated drive for {user.email} on {project.project_tag}.")
+                session.commit()
+                
+            except (IntegrityError, Exception) as e:
+                session.rollback()
+                msg = str(e.orig if isinstance(e, IntegrityError) else e).strip().replace("\n", "")
+                user_project.status_drive = Status.failed
+                user_project.drive_result = f"failure: {msg}"
+                session.commit()
+                self.log.error(
+                    f"automation failed {user_project.user.email} on {user_project.project.project_tag}: {msg}"
+                )
+    
 if __name__ == "__main__":
     TEST_POSTGRES = os.getenv("TEST_POSTGRES_URL") or ""
     TEST_SLACK_TOKEN = os.getenv("TEST_SLACK_BOT_TOKEN") or ""
@@ -436,21 +482,22 @@ if __name__ == "__main__":
     
     github = Github(TEST_GITHUB_TOKEN, TEST_GITHUB_ORG)
     slacker = Slacker(TEST_SLACK_TOKEN)
-    spark = Spark(TEST_POSTGRES, TEST_GITHUB_ORG, slacker, github)
+    drive = Drive()
+    spark = Spark(TEST_POSTGRES, TEST_GITHUB_ORG, slacker, github, drive)
     
-    # ingestproject = pd.read_csv("./ingestproject.csv")
-    # spark.ingest_project_csv(ingestproject)
+    ingestproject = pd.read_csv("./ingestproject.csv")
+    spark.ingest_project_csv(ingestproject)
     
-    # ingestuserproject = pd.read_csv("./ingestuserproject.csv")
-    # spark.ingest_user_project_csv(ingestuserproject)
+    ingestuserproject = pd.read_csv("./ingestuserproject.csv")
+    spark.ingest_user_project_csv(ingestuserproject)
     
-    # print("---")
-    # print("---")
-    # print("---")
+    print("---")
+    print("---")
+    print("---")
     
-    # spark.process_ingest_project_csv()
-    # spark.process_ingest_user_project_csv()
+    spark.process_ingest_project_csv()
+    spark.process_ingest_user_project_csv()
     
-    # spark.automate_github(tags=[], start_state=Status.pull, end_state=Status.push)
+    spark.automate_github(tags=[])
 
-    # spark.automate_slack(tags=[])
+    spark.automate_slack(tags=[])

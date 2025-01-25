@@ -290,6 +290,7 @@ class Spark:
         
         session = self.s()
         
+        # get all user projects from the tags if the tags are provided otherwise get all user projects
         user_projects = session.query(UserProject).join(Project).filter(
             Project.project_tag.in_(tags or [up.project.project_tag for up in session.query(UserProject).all()]),
             UserProject.status_github == start_state
@@ -475,29 +476,35 @@ class Spark:
                 )
     
 if __name__ == "__main__":
-    TEST_POSTGRES = os.getenv("TEST_POSTGRES_URL") or ""
-    TEST_SLACK_TOKEN = os.getenv("TEST_SLACK_BOT_TOKEN") or ""
-    TEST_GITHUB_ORG = "auto-spark"
-    TEST_GITHUB_TOKEN = os.getenv("TEST_GITHUB_PAT") or ""
+    # POSTGRES = os.getenv("POSTGRES_URL") or ""
+    # SLACK_TOKEN = os.getenv("SLACK_BOT_TOKEN") or ""
+    GITHUB_ORG = "BU-Spark"
+    GITHUB_TOKEN = os.getenv("SPARK_GITHUB_PAT") or ""
     
-    github = Github(TEST_GITHUB_TOKEN, TEST_GITHUB_ORG)
-    slacker = Slacker(TEST_SLACK_TOKEN)
+    POSTGRES = os.getenv("TEST_POSTGRES_URL") or ""
+    SLACK_TOKEN = os.getenv("TEST_SLACK_BOT_TOKEN") or ""
+    #GITHUB_ORG = "auto-spark"
+    #GITHUB_TOKEN = os.getenv("TEST_GITHUB_PAT") or ""
+    
+    github = Github(GITHUB_TOKEN, GITHUB_ORG)
+    slacker = Slacker(SLACK_TOKEN)
     drive = Drive()
-    spark = Spark(TEST_POSTGRES, TEST_GITHUB_ORG, slacker, github, drive)
+    spark = Spark(POSTGRES, GITHUB_ORG, slacker, github, drive)
     
-    ingestproject = pd.read_csv("./ingestproject.csv")
-    spark.ingest_project_csv(ingestproject)
+    # ingestproject = pd.read_csv("./ingestproject.csv")
+    # spark.ingest_project_csv(ingestproject)
     
-    ingestuserproject = pd.read_csv("./ingestuserproject.csv")
-    spark.ingest_user_project_csv(ingestuserproject)
+    # ingestuserproject = pd.read_csv("./ingestuserproject.csv")
+    # spark.ingest_user_project_csv(ingestuserproject)
     
     print("---")
     print("---")
     print("---")
     
-    spark.process_ingest_project_csv()
-    spark.process_ingest_user_project_csv()
+    # spark.process_ingest_project_csv()
+    # spark.process_ingest_user_project_csv()
     
-    spark.automate_github(tags=[])
-
-    spark.automate_slack(tags=[])
+    # spark.automate_github(tags=[], start_state=Status.started, end_state=Status.push)
+    spark.automate_github(tags=[], start_state=Status.push, end_state=Status.removed)
+    
+    # spark.automate_slack(tags=[])

@@ -443,6 +443,11 @@ class Github:
             return 500, str(e)
     
 if __name__ == "__main__":
-    TEST_GITHUB_PAT = os.getenv("TEST_GITHUB_PAT") or ""
-    github = Github(TEST_GITHUB_PAT, "auto-spark")
-    print()
+    #TEST_GITHUB_PAT = os.getenv("TEST_GITHUB_PAT") or ""
+    #test_github = Github(TEST_GITHUB_PAT, "auto-spark")
+    
+    GITHUB_PAT = os.getenv("SPARK_GITHUB_PAT") or ""
+    github = Github(GITHUB_PAT, "BU-Spark")
+    
+    ppl = github.get_users_on_repo("https://github.com/BU-Spark/ds-black-response-shotspotter.git")
+    print(ppl)

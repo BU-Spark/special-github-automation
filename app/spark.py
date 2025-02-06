@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Any, Generator, List, Literal
 from schema import _Project, _User, _UserProject
 from models import User, Project, Base, IngestProjectCSV, IngestUserProjectCSV, Semester, UserProject, Outcome, Status
@@ -27,7 +28,7 @@ class Spark:
         self.slacker = slacker
         self.drive = drive
         self.git = git
-        self.log = log.SparkLogger(name="Spark", output=True, persist=True)
+        self.log = log.SparkLogger(name="Spark-DS594", output=True, persist=True)
         
     def s(self) -> Session:
         return sessionmaker(bind=self.engine)()
@@ -168,10 +169,28 @@ class Spark:
                         ####################################################################################################
                         # CUSTOM SLACK CHANNEL NAME LOGIC GOES HERE
                         ####################################################################################################
-                        slack_channel_id = self.slacker.create_channel(row.project_tag)
-                        slack_channel_name = self.slacker.get_channel_name(slack_channel_id)
-                        row.slack_channel = slack_channel_name
-                        self.log.info(f"created slack channel {slack_channel_id} for project {row.project_tag}.")
+                        try:
+                            slack_prefix = "i-sp25-"
+                            slack_course = (row.course or "").replace("/", "-").replace(" ", "-")
+                            slack_tag = row.project_tag
+
+                            slack_f_name = slack_prefix + (slack_course + "-" if slack_course else "") + slack_tag
+                            slack_lower_name = slack_f_name.lower()
+                            
+                            slack_channel_id = self.slacker.create_channel(
+                                slack_lower_name,
+                                True
+                            )
+                            slack_channel_name = self.slacker.get_channel_name(slack_channel_id)
+                            if slack_channel_name != "undefined-slack-channel":
+                                row.slack_channel = slack_channel_name
+                                self.log.info(f"created or fetched slack channel {slack_channel_id} for project {row.project_tag}.")
+                            else:
+                                self.log.error(f"slack channel creation error for {row.project_tag}: {slack_channel_name}")
+                        except Exception as e:
+                            row.outcome = Outcome.warning
+                            results.append(f"warning: {e}")
+                            self.log.warning(f"slack channel creation error for {row.project_tag}: {e}")
                     else:
                         row.outcome = Outcome.warning
                         results.append("warning: slack channel already exists.")
@@ -205,6 +224,7 @@ class Spark:
                 session.commit()
             
             except (IntegrityError, Exception) as e:
+                print(e)
                 session.rollback()
                 msg = str(e.orig if isinstance(e, IntegrityError) else e).strip().replace("\n", "")
                 session.query(IngestProjectCSV).filter(IngestProjectCSV.id == row.id).update({
@@ -212,7 +232,7 @@ class Spark:
                     IngestProjectCSV.result: f"failure: {msg}"
                 })
                 session.commit()
-                self.log.error(f"failure processing project csv row {row.project_tag}: {msg}")
+                self.log.error(f"integrity failure processing project csv row {row.project_tag}: {msg}")
         
         session.close()
         
@@ -376,10 +396,11 @@ class Spark:
         
         user_projects = session.query(UserProject).join(Project).filter(
             Project.project_tag.in_(tags or [up.project.project_tag for up in session.query(UserProject).all()]),
-            UserProject.status_slack == Status.started
+            UserProject.status_slack.in_([Status.started, Status.failed])
         ).all()
         
         for user_project in user_projects:
+            time.sleep(1)
             try:
                 project = user_project.project
                 user = user_project.user
@@ -477,12 +498,12 @@ class Spark:
     
 if __name__ == "__main__":
     # POSTGRES = os.getenv("POSTGRES_URL") or ""
-    # SLACK_TOKEN = os.getenv("SLACK_BOT_TOKEN") or ""
+    SLACK_TOKEN = os.getenv("SLACK_BOT_TOKEN") or ""
     GITHUB_ORG = "BU-Spark"
     GITHUB_TOKEN = os.getenv("SPARK_GITHUB_PAT") or ""
     
     POSTGRES = os.getenv("TEST_POSTGRES_URL") or ""
-    SLACK_TOKEN = os.getenv("TEST_SLACK_BOT_TOKEN") or ""
+    #SLACK_TOKEN = os.getenv("TEST_SLACK_BOT_TOKEN") or ""
     #GITHUB_ORG = "auto-spark"
     #GITHUB_TOKEN = os.getenv("TEST_GITHUB_PAT") or ""
     
@@ -491,20 +512,65 @@ if __name__ == "__main__":
     drive = Drive()
     spark = Spark(POSTGRES, GITHUB_ORG, slacker, github, drive)
     
-    # ingestproject = pd.read_csv("./ingestproject.csv")
-    # spark.ingest_project_csv(ingestproject)
+    #ingestproject = pd.read_csv("./ingestproject.csv")
+    #spark.ingest_project_csv(ingestproject)
     
-    # ingestuserproject = pd.read_csv("./ingestuserproject.csv")
-    # spark.ingest_user_project_csv(ingestuserproject)
+    #ingestuserproject = pd.read_csv("./ingestuserproject.csv")
+    #spark.ingest_user_project_csv(ingestuserproject)
     
     print("---")
     print("---")
     print("---")
     
-    # spark.process_ingest_project_csv()
-    # spark.process_ingest_user_project_csv()
+    #spark.process_ingest_project_csv()
+    #spark.process_ingest_user_project_csv()
     
-    # spark.automate_github(tags=[], start_state=Status.started, end_state=Status.push)
-    spark.automate_github(tags=[], start_state=Status.push, end_state=Status.removed)
+    #spark.automate_github(tags=[], start_state=Status.started, end_state=Status.push)
+    #spark.automate_github(tags=[], start_state=Status.push, end_state=Status.removed)
     
-    # spark.automate_slack(tags=[])
+    ds519channels = [
+        #"i-sp25-ds519-488-d4-constituent-app",
+        "i-sp25-ds519_488-social-justice-app",
+        #"i-sp25-ds519-488-bva",
+        #"i-sp25-ds519-488-community-service-hours",
+        #"i-sp25-ds519-488-auto-mech-challenge",
+        #"i-sp25-ds519-488-mass-courts-v3",
+        "i-sp25-ds519_488-cmovf",
+        "i-sp25-ds519_488-academico-ai",
+        "i-sp25-ds519_488-mola"
+    ]
+    ds519tags = [
+        #"constituent-app",
+        "social-justice-app",
+        #"bva",
+        #"community-service-hours",
+        #"auto-mech-challenge",
+        #"mass-courts-v3",
+        "cmovf",
+        "academico-ai",
+        "mola"
+    ]
+    #spark.automate_slack(tags=ds519tags)
+    
+    ds549channels = [
+        "i-sp25-ds549-coffeechat-matchmaker",
+        "i-sp25-ds549-wlfc-archive"
+    ]
+    ds549tags = [
+        "wlfc-archive",
+        "coffeechat-matchmaker"
+    ]
+    
+    #spark.automate_slack(tags=ds549tags)
+    
+    saadid = slacker.get_user_id("saad7@bu.edu")
+    langid = slacker.get_user_id("langd0n@bu.edu")
+    omarid = slacker.get_user_id("oea@bu.edu")
+    
+    for c in ds519channels:
+        print(c)
+        slacker.invite_users_to_channel(
+            slacker.get_channel_id(c),
+            [saadid, langid, omarid]
+        )
+        

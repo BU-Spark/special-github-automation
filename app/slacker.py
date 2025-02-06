@@ -12,6 +12,7 @@ class Slacker:
         self.token = token
         self.client = WebClient(token=self.token)
         self.log = log.SparkLogger(name="Slacker", output=True, persist=True)
+        self.channel_cache = {}
 
     def get_user_id(self, email: str) -> str:
         """
@@ -49,8 +50,10 @@ class Slacker:
             )
             channel_id = response['channel']['id']
             self.log.info(f"created channel '{channel_name}' with ID: {channel_id}")
+            self.channel_cache[channel_name] = channel_id
             return channel_id
         except SlackApiError as e:
+            print(e)
             if e.response['error'] == 'name_taken':
                 self.log.warning(f"channel '{channel_name}' already exists.")
                 existing_channel = self.get_channel_id(channel_name)
@@ -61,24 +64,55 @@ class Slacker:
 
     def get_channel_id(self, channel_name: str) -> str:
         """
-        Fetches the ID of an existing channel with the given name.
+        Fetches the ID of an existing channel with the given name using pagination.
         
-        Args: channel_name (str): The name of the channel.
-        Returns: str: The ID of the channel if found, otherwise an empty string.
-        Raises: SlackApiError: If the API call fails.
+        Args:
+            channel_name (str): The name of the channel.
+        
+        Returns:
+            str: The ID of the channel if found.
+        
+        Raises:
+            SlackApiError: If the API call fails or the channel is not found.
         """
         
+        print(f"Fetching channel ID for '{channel_name}'...")
+        
+        if channel_name in self.channel_cache:
+            self.log.info(f"Found channel ID {self.channel_cache[channel_name]} in cache for '{channel_name}'.")
+            return self.channel_cache[channel_name]
+        else:
+            self.log.info(f"Channel ID for '{channel_name}' not found in cache. Fetching from API...")
+        
         try:
-            response = self.client.conversations_list(types="public_channel,private_channel", limit=1000)
-            channel_id = next((c['id'] for c in response['channels'] if c['name'] == channel_name), "")
-            if channel_id:
-                self.log.info(f"fetched channel ID {channel_id} for '{channel_name}'.")
-                return channel_id
-            else:
-                self.log.warning(f"channel '{channel_name}' not found.")
-                raise SlackApiError(f"Channel '{channel_name}' not found.", response)
+            cursor = None
+            total = 0
+            while True:
+                time.sleep(1)
+                response = self.client.conversations_list(
+                    types="public_channel,private_channel,mpim,im",
+                    limit=1000, 
+                    cursor=cursor,
+                    exclude_archived=True
+                )
+                total += len(response.get("channels", []))
+                for channel in response.get("channels", []):
+                    if channel.get("name") == channel_name:
+                        self.log.info(f"Fetched channel ID {channel['id']} for '{channel_name}'.")
+                        return channel["id"]
+                    else:
+                        potential_cache_name = channel.get("name")
+                        if potential_cache_name not in self.channel_cache:
+                            self.channel_cache[potential_cache_name] = channel["id"]
+
+                cursor = response.get("response_metadata", {}).get("next_cursor")
+                if not cursor: break
+            
+            print(f"Total channels fetched: {total}")
+            self.log.warning(f"Channel '{channel_name}' not found.")
+            raise SlackApiError(f"Channel '{channel_name}' not found.", response={})
         except SlackApiError as e:
-            self.log.error(f"failed to fetch channel ID for '{channel_name}': {e.response['error']}")
+            self.log.error(f"Failed to fetch channel ID for '{channel_name}': {e}")
             raise e
 
     def get_channel_name(self, channel_id: str) -> str:
@@ -161,14 +195,82 @@ class Slacker:
             self.log.error(f"failed to create channels and add users: {e}")
             raise e
 
+    def change_channel_name(self, channel_id: str, new_name: str):
+        """
+        Changes the name of a Slack channel.
+        
+        Args:
+            channel_id (str): The ID of the channel.
+            new_name (str): The new name for the channel.
+        Raises: SlackApiError: If the API call fails.
+        """
+        
+        try:
+            self.client.conversations_rename(
+                channel=channel_id,
+                name=new_name
+            )
+            self.log.info(f"changed channel name for ID {channel_id} to '{new_name}'.")
+        except SlackApiError as e:
+            self.log.error(f"failed to change channel name for ID {channel_id}: {e.response['error']}")
+            raise e
+
+    def convert_channel_to_private(self, channel_id: str):
+        """
+        Converts a Slack channel to a private channel.
+        
+        Args: channel_id (str): The ID of the channel.
+        Raises: SlackApiError: If the API call fails.
+        """
+        
+        try:
+            self.client.admin_conversations_convertToPrivate(
+                channel_id=channel_id,
+            )
+        except SlackApiError as e:
+            self.log.error(f"failed to convert channel ID {channel_id} to private: {e.response['error']}")
+            raise e
+
 if __name__ == "__main__":
     load_dotenv()
-    
     slacker = Slacker(token=os.getenv('SLACK_BOT_TOKEN') or "")
-    """ channels_dict = {
-        'channel1': ["x@bu.edu"],
-        'channel2': ["y@bu.edu"],
-        'channel3': ["z@bu.edu"]
-    }
-    created_channels = slacker.create_channels_and_add_users(channels_dict, is_private=False) """
-    print(slacker.get_channel_name("C085LBA78GJ"))
+    
+    chann_tags = [
+        "i-sp25-ds519-488-d4-constituent-app",
+        #"i-sp25-ds519-488-social-justice-app",
+        "i-sp25-ds519-488-bva",
+        "i-sp25-ds519-488-community-service-hours",
+        "i-sp25-ds519-488-auto-mech-challenge",
+        "i-sp25-ds519-488-mass-courts-v3",
+        #"i-sp25-ds519-488-cmovf",
+        #"i-sp25-ds519-488-academico-ai",
+        #"i-sp25-ds519-488-mola"
+    ]
+    
+    underscore_chan_tags = [
+        #"i-sp25-ds519_488-d4-constituent-app",
+        "i-sp25-ds519_488-social-justice-app",
+        #"i-sp25-ds519_488-bva",
+        #"i-sp25-ds519_488-community-service-hours",
+        #"i-sp25-ds519_488-auto-mech-challenge",
+        #"i-sp25-ds519_488-mass-courts-v3",
+        "i-sp25-ds519_488-cmovf",
+        "i-sp25-ds519_488-academico-ai",
+        "i-sp25-ds519_488-mola"
+    ]
+    
+    #created slack channel C08C1NZK076 for project social-justice-app.
+    #created slack channel C08BZD34X2P for project social-justice-app.
+    
+    #for tag in underscore_chan_tags:  print(slacker.get_channel_id(tag))
+    
+    #print(slacker.create_channel("i-sp25-ds519_488-social-justice-app", is_private=True))
+    
+    #print(slacker.get_channel_name("C08BZD34X2P"))
+    #print(slacker.get_channel_name("C08C1NZK076"))
+    #print(slacker.get_channel_id("i-sp25-ds519-488-social-justice-app"))
+    #print(slacker.get_channel_id("i-sp25-ds519_488-social-justice-app"))
+    
+    #print(slacker.change_channel_name("C08BZD34X2P", "renamed-social-justice-app"))
+    
+    slacker.convert_channel_to_private(slacker.get_channel_id("i-sp25-ds549-wlfc-archive"))

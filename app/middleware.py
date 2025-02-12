@@ -22,7 +22,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
             if request.method == "OPTIONS" or request.url.path in self.allowed:
                 return await call_next(request)
             
-            authorization: str = request.headers.get("Authorization")
+            authorization: str | None = request.headers.get("Authorization") 
             if not authorization:
                 return JSONResponse({"detail": "Authorization required"}, status_code=401)
 

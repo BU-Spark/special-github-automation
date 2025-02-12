@@ -28,7 +28,7 @@ class Spark:
         self.slacker = slacker
         self.drive = drive
         self.git = git
-        self.log = log.SparkLogger(name="Spark-DS594", output=True, persist=True)
+        self.log = log.SparkLogger(name="Spark-s", output=True, persist=True)
         
     def s(self) -> Session:
         return sessionmaker(bind=self.engine)()
@@ -67,6 +67,15 @@ class Spark:
     # ----------------------------------------------------------------------------------------------------------------------
     # ingestion of csv files into holding tables
     # ----------------------------------------------------------------------------------------------------------------------
+    
+    def clear_ingestion_tables(self):
+        """clear ingestion tables"""
+        
+        session = self.s()
+        session.query(IngestProjectCSV).delete()
+        session.query(IngestUserProjectCSV).delete()
+        session.commit()
+        session.close()
     
     def ingest_csv(self, df: DataFrame, colmap: dict[str, str], table: str):
         """ingest csv"""
@@ -356,12 +365,14 @@ class Spark:
                         permission=permission_lookup(end_state)
                     )
                     user_project.status_github = end_state
-                    user_project.github_result = "all systems operational."
-                    self.log.info(f"automated {user.email} on {project.project_tag} to {end_state}.")
+                    user_project.github_result = "already a collaborator - all systems operational."
+                    self.log.info(f"user {user.email} already a collaborator on {project.project_tag} with {end_state}.")
                     session.commit()
                     continue
                 
-                if start_state == Status.started:
+                if start_state == Status.started or \
+                    (start_state == Status.removed and end_state == Status.push) or \
+                    (start_state == Status.failed and end_state == Status.push):
                     code, m = self.git.add_user_to_repo(
                         repo_url=project.github_url,
                         user=user.github_username,
@@ -373,6 +384,7 @@ class Spark:
                         self.log.error(f"failure automating {user.email} on {project.project_tag}: {m}")
                         session.commit()
                         continue
+                    else: self.log.info(f"added {user.email} to {project.project_tag}.")
                     user_project.status_github = end_state
                     user_project.github_result = "all systems operational."
                     self.log.info(f"automated {user.email} on {project.project_tag} to {end_state}.")
@@ -525,8 +537,7 @@ if __name__ == "__main__":
     #spark.process_ingest_project_csv()
     #spark.process_ingest_user_project_csv()
     
-    #spark.automate_github(tags=[], start_state=Status.started, end_state=Status.push)
-    #spark.automate_github(tags=[], start_state=Status.push, end_state=Status.removed)
+    spark.automate_github(tags=["commonwealth-climate"], start_state=Status.failed, end_state=Status.push)
     
     ds519channels = [
         #"i-sp25-ds519-488-d4-constituent-app",
@@ -563,14 +574,14 @@ if __name__ == "__main__":
     
     #spark.automate_slack(tags=ds549tags)
     
-    saadid = slacker.get_user_id("saad7@bu.edu")
-    langid = slacker.get_user_id("langd0n@bu.edu")
-    omarid = slacker.get_user_id("oea@bu.edu")
+    #saadid = slacker.get_user_id("saad7@bu.edu")
+    #langid = slacker.get_user_id("langd0n@bu.edu")
+    #omarid = slacker.get_user_id("oea@bu.edu")
     
-    for c in ds519channels:
-        print(c)
-        slacker.invite_users_to_channel(
-            slacker.get_channel_id(c),
-            [saadid, langid, omarid]
-        )
+    #for c in ds519channels:
+    #    print(c)
+    #    slacker.invite_users_to_channel(
+    #        slacker.get_channel_id(c),
+    #        [saadid, langid, omarid]
+    #    )
         
